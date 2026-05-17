@@ -335,7 +335,7 @@ void Display::_start() {
     _applyRssiMode();
 #    endif
     if (_chbox) {
-        _chbox->setText(config.lastStation(), "Ch:%d."); // Beállítja a csatorna számát a widgetnek.
+        _chbox->setText(config.lastStation(), "Ch:%d"); // Beállítja a csatorna számát a widgetnek. (MB)
     }
 #    ifndef HIDE_IP
     if (_ipbox) { _ipbox->setText(config.ipToStr(WiFi.localIP()), iptxtFmt); }
@@ -587,7 +587,7 @@ void Display::loop() {
                             _bitratewidget->setBitrate(config.station.bitrate);
                         }
                         // Beállítja a csatorna számát a widgeten
-                        if (_chbox) { _chbox->setText(config.lastStation(), "Ch:%d."); }
+                        if (_chbox) { _chbox->setText(config.lastStation(), "Ch:%d"); }  //(MB)
                     }
                 } break;
 

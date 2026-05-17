@@ -21,11 +21,11 @@
 /* Itt tudod beállítani a program nyelvét
    You can set the program language here.
    Supported languages: HU NL PL RU EN GR SK DE UA ES. */
-#define LANGUAGE HU
+#define LANGUAGE PL
 
 /* -- Névnapok megjelenítése -- Display name days --
 Supported languages: HU, PL, NL, GR, DE (UA Local/namedays/namedays_UA.h is not filled in.) */
-#define NAMEDAYS_FILE HU
+#define NAMEDAYS_FILE PL
 
 #define USE_BUILTIN_LED false /* The RGB LED does not turn on.. */
 
@@ -57,16 +57,16 @@ Supported languages: HU, PL, NL, GR, DE (UA Local/namedays/namedays_UA.h is not 
 //#define TS_CS    3
 
 /*----- Touch I2C -----*/
-#define TS_MODEL TS_MODEL_FT6X36
-// #define TS_MODEL TS_MODEL_AXS15231B
- #define TS_SCL     7
- #define TS_SDA     8
- #define TS_INT    17 
- //#define TS_RST     1
+//#define TS_MODEL TS_MODEL_FT6X36
+//#define TS_MODEL TS_MODEL_AXS15231B
+//#define TS_SCL     7
+//#define TS_SDA     8
+//#define TS_INT    17 
+//#define TS_RST     1
 
 /*----- NEXTION DISPLAY serial port -----*/
-// #define NEXTION_RX			15
-// #define NEXTION_TX			16
+//#define NEXTION_RX			15
+//#define NEXTION_TX			16
 
 /*----- PCM5102A  DAC -----*/
 #define I2S_DOUT 4
@@ -76,21 +76,21 @@ Supported languages: HU, PL, NL, GR, DE (UA Local/namedays/namedays_UA.h is not 
 //Szabad és MCLK-ra alkalmas jelöltek: GPIO 0, 7, 8, 15, 16, 17, 18, 45, 46
 
 /*----- ENCODER 1 ------*/
-#define ENC_BTNR 47 // S2
-#define ENC_BTNL 42 // S1
-#define ENC_BTNB 21 // KEY
-#define ENC_INTERNALPULLUP	true
+//#define ENC_BTNR 47 // S2
+//#define ENC_BTNL 42 // S1
+//#define ENC_BTNB 21 // KEY
+//#define ENC_INTERNALPULLUP	true
 
 /*----- ENCODER 2 -----*/
-#define ENC2_BTNR 41 // S2
-#define ENC2_BTNL 40 // S1
-#define ENC2_BTNB 39 // KEY
-#define ENC2_INTERNALPULLUP	true
+#define ENC2_BTNR 48 // S2
+#define ENC2_BTNL 47 // S1
+#define ENC2_BTNB 21 // KEY
+//#define ENC2_INTERNALPULLUP	true
 
 /*----- CLOCK MODUL RTC DS3132 -----*/
- #define RTC_SCL			     7
- #define RTC_SDA			     8
-#define RTC_MODULE DS3231
+//#define RTC_SCL			     7
+//#define RTC_SDA			     8
+//#define RTC_MODULE DS3231
 
 /*----- REMOTE CONTROL INFRARED RECEIVER -----*/
 /*----- Alvásból ébresztéshez a GPIO 2 -őt kell használni, mert a GPIO 38 nem RTC pin. A PCB-n át kell kötni! -----*/
@@ -136,9 +136,9 @@ When music is not playing (stopped or volume is 0), the pin is set to LOW. This 
 
 /*----- by Zsolt Simon -----*/
 /*----- Tested on Synology NAS ----- */
- #define USE_DLNA
- #define dlnaHost "192.168.1.200"
- #define dlnaIDX  21
+// #define USE_DLNA
+// #define dlnaHost "192.168.1.200"
+// #define dlnaIDX  21
 
 //#define POWER_LED 38      // Button LED pin (will be turned on when player is on)
 

@@ -16,12 +16,12 @@
 #else
   #define TITLE_FIX   0
 #endif
-#define bootLogoTop 55
+#define bootLogoTop 30  // (MB) wysokość logo dla większego pliku wyżej
 
 /* SROLLS  */                            /* {{ left, top, fontsize, align }, buffsize, uppercase, width, scrolldelay, scrolldelta, scrolltime } */
-const ScrollConfig metaConf       PROGMEM = {{ TFT_FRAMEWDT, 0, 36, WA_CENTER }, 140, true, MAX_WIDTH, 5000, 3, 40 };
-const ScrollConfig title1Conf     PROGMEM = {{TFT_FRAMEWDT, 55, 20, WA_CENTER}, 140, true, MAX_WIDTH, 5000, 4, 40};
-const ScrollConfig title2Conf     PROGMEM = {{TFT_FRAMEWDT, 81, 20, WA_CENTER}, 140, true, MAX_WIDTH, 5000, 4, 40};
+const ScrollConfig metaConf       PROGMEM = {{ TFT_FRAMEWDT, 0, 36, WA_CENTER }, 140, true, MAX_WIDTH, 5000, 2, 40 };
+const ScrollConfig title1Conf     PROGMEM = {{TFT_FRAMEWDT, 55, 20, WA_CENTER}, 140, true, MAX_WIDTH, 5000, 2, 40};
+const ScrollConfig title2Conf     PROGMEM = {{TFT_FRAMEWDT, 81, 20, WA_CENTER}, 140, true, MAX_WIDTH, 5000, 2, 40};
 const ScrollConfig playlistConf   PROGMEM = {{ TFT_FRAMEWDT, 146, 24, WA_LEFT }, 140, true, MAX_WIDTH, 1000, 7, 40 };
 const ScrollConfig apTitleConf    PROGMEM = {{ TFT_FRAMEWDT, TFT_FRAMEWDT, 4, WA_CENTER }, 140, false, MAX_WIDTH, 0, 7, 40 };
 const ScrollConfig apSettConf     PROGMEM = {{ TFT_FRAMEWDT, 320-TFT_FRAMEWDT-16, 2, WA_LEFT }, 140, false, MAX_WIDTH, 0, 5, 40 };
@@ -60,7 +60,7 @@ const NamedayWidgetConfig namedayConf    PROGMEM = { TFT_FRAMEWDT, 180, 140, 45,
 const VolumeWidgetConfig volConf PROGMEM = {180, 288, 90, 25, 21, 2, 1, 8, 10, 14, 4, 1};
 
 // left, top, width, height, image1, image2, image3, image4
-const WifiWidgetConfig wifiConf PROGMEM = {440, 288, 30, 25, "/images/wifi_1_30x25.png", "/images/wifi_2_30x25.png", "/images/wifi_3_30x25.png", "/images/wifi_4_30x25.png"};
+const WifiWidgetConfig wifiConf PROGMEM = {390, 288, 80, 25, "/images/wifi_1_80x25.png", "/images/wifi_2_80x25.png", "/images/wifi_3_80x25.png", "/images/wifi_4_80x25.png"}; // (MB)
 
 //left, top, textsize, align, border, radius, fill, paddingX, paddingY, dimension
 const BitrateBoxConfig bitrateConf PROGMEM = {10, 145, 20, WA_CENTER, 1, 4, true, 0, 0, 56};

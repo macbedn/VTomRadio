@@ -63,7 +63,7 @@ const VolumeWidgetConfig volConf PROGMEM = {180, 288, 90, 25, 21, 2, 1, 8, 10, 1
 const WifiWidgetConfig wifiConf PROGMEM = {390, 288, 80, 25, "/images/wifi_1_80x25.png", "/images/wifi_2_80x25.png", "/images/wifi_3_80x25.png", "/images/wifi_4_80x25.png"}; // (MB)
 
 //left, top, textsize, align, border, radius, fill, paddingX, paddingY, dimension
-const BitrateBoxConfig bitrateConf PROGMEM = {10, 145, 20, WA_CENTER, 1, 4, true, 0, 0, 56};
+const BitrateBoxConfig bitrateConf PROGMEM = {10, 145, 22, WA_CENTER, 1, 4, true, 0, 0, 64};  // (MB) większy widget bitrate
 
 /* left, top, textsize, width, onebandwidth (width), onebandheight (height), bandsHspace (space), bandsVspace (vspace), numofbands (perheight), fadespeed, labelwidth, labelheight} */
 #define VU_HAS_DUAL_CONF 1

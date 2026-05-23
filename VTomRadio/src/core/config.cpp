@@ -199,7 +199,7 @@ void Config::init() {
         saveValue(&store.vuPeak, true, false);
         saveValue(&store.vuPeakInitMarker, static_cast<uint8_t>(0xA5));
     }
-    if (store.clockFontStyle > CLOCKFONT_STYLE_CALIBRI) { saveValue(&store.clockFontStyle, static_cast<uint8_t>(CLOCKFONT_STYLE)); }
+    if (store.clockFontStyle > CLOCKFONT_STYLE_ANDROIDCLOCK) { saveValue(&store.clockFontStyle, static_cast<uint8_t>(CLOCKFONT_STYLE)); }
     if (store.clockFontStyle != CLOCKFONT_STYLE_DIGI7 && store.clockFontMono) { saveValue(&store.clockFontMono, false); }
     if (store.dateFormat > 4) { saveValue(&store.dateFormat, static_cast<uint8_t>(0)); }
     BOOTLOG("CONFIG_VERSION\t%d", store.version);
@@ -1526,7 +1526,7 @@ bool Config::loadStation(uint16_t ls) {
     if (cs == 0) {
         memset(station.url, 0, BUFLEN);
         memset(station.name, 0, BUFLEN);
-        strncpy(station.name, "yoRadio", BUFLEN);
+        strncpy(station.name, "VTom Radio", BUFLEN);
         station.ovol = 0;
         return false;
     }

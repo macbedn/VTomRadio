@@ -11,7 +11,7 @@ import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
 import tkinter as tk
-from tkinter import filedialog, messagebox, simpledialog, ttk
+from tkinter import filedialog, simpledialog, ttk
 
 try:
     import serial
@@ -20,7 +20,15 @@ except Exception:
     serial = None
     list_ports = None
 
-APP_VERSION = "0.3.4"
+<<<<<<< Updated upstream
+<<<<<<<< Updated upstream:LittleFS_manager/LittleFS-SPIFFS_Partition_Manager_v0.4.py
+APP_VERSION = "0.4"
+========
+APP_VERSION = "0.3.4-estimated-fs"
+>>>>>>>> Stashed changes:LittleFS_manager/LittleFS-SPIFFS_Partition_Manager_v0.3.4.py
+=======
+APP_VERSION = "0.4"
+>>>>>>> Stashed changes
 DEFAULT_BAUDRATE = 460800
 # Upload tuning:
 # 96 bytes is the old proven-safe mode, but it is extremely slow because every chunk
@@ -30,13 +38,41 @@ DEFAULT_BAUDRATE = 460800
 CHUNK_SIZE = 1024
 SAFE_CHUNK_SIZE = 96
 FAST_CHUNK_SIZES = (1024, 768, 512, 256, 96)
+RESTORE_CHUNK_SIZES = (256, 192, 128, 96)
 UPLOAD_INTER_CHUNK_DELAY = 0.0
+RESTORE_INTER_CHUNK_DELAY = 0.003
 WRITE_BEGIN_TIMEOUT = 6.0
 WRITE_DATA_TIMEOUT_FAST = 1.0
 WRITE_DATA_TIMEOUT_SAFE = 2.0
+WRITE_DATA_TIMEOUT_RESTORE = 5.0
 WRITE_END_TIMEOUT = 6.0
 MAX_AUTO_RETRIES = 1
 DEFAULT_SPIFFS_CAPACITY_KB = 896
+<<<<<<< Updated upstream
+<<<<<<<< Updated upstream:LittleFS_manager/LittleFS-SPIFFS_Partition_Manager_v0.4.py
+=======
+>>>>>>> Stashed changes
+MAX_PROTO_LINE_BYTES = 8 * 1024 * 1024
+SERIAL_READ_CHUNK_BYTES = 4096
+READ_LINE_TIMEOUT = 25.0
+READ_FILE_RETRIES = 1
+<<<<<<< Updated upstream
+========
+MAX_PROTO_LINE_BYTES = 2 * 1024 * 1024
+>>>>>>>> Stashed changes:LittleFS_manager/LittleFS-SPIFFS_Partition_Manager_v0.3.4.py
+=======
+>>>>>>> Stashed changes
+FS_PROFILE_CHOICES = (
+    ("myradio_896", "myRadio / 896 KB", 896),
+    ("vtomradio_yoradio_16mb_3904", "VTomRadio LittleFS 3.8 MB", 3904),
+    ("generic_1024", "Általános / 1 MB", 1024),
+    ("generic_1536", "Általános / 1.5 MB", 1536),
+    ("generic_2048", "Általános / 2 MB", 2048),
+    ("generic_4096", "Általános / 4 MB", 4096),
+    ("custom", "Egyedi", None),
+    ("disabled", "Kikapcsolva", None),
+)
+FS_SAFETY_FLOOR_BYTES = 96 * 1024
 
 
 TEXT = {
@@ -48,6 +84,7 @@ TEXT = {
         "disconnect": "Kapcsolat bontása",
         "maintenance": "Karbantartó mód indítása",
         "backup": "Teljes mentés (ZIP)",
+        "backup_verify": "Mentés ellenőrzése",
         "restore": "Mentés visszaállítása",
         "list": "Fájllista frissítése",
         "delete": "Kijelölt törlése",
@@ -56,11 +93,16 @@ TEXT = {
         "download": "Kijelölt mentése",
         "reboot": "Rádió újraindítása",
         "lang": "Nyelv: HU / EN",
-        "spiffs_capacity": "FS méret",
-        "set_spiffs_capacity": "FS méret beállítása",
-        "spiffs_capacity_prompt": "Add meg a teljes fájlrendszer partíció méretet KB-ban.\nÜresen hagyva a helyellenőrzés kikapcsolva.",
-        "spiffs_capacity_disabled": "FS helyellenőrzés: kikapcsolva",
-        "spiffs_capacity_set": "FS helyellenőrzés aktív: {value} KB",
+        "spiffs_capacity": "Partíció méret",
+        "set_spiffs_capacity": "Partíció méret profil",
+        "spiffs_capacity_prompt": "Válassz partíció profilt, vagy adj meg egyedi teljes méretet KB-ban.",
+        "spiffs_capacity_disabled": "Partíció méret helyellenőrzés: kikapcsolva",
+        "spiffs_capacity_set": "Partíció méret profil aktív: {name} ({value} KB)",
+        "spiffs_capacity_custom": "Egyedi Partíció méret méret KB-ban:",
+        "fs_estimate_unknown": "Partíció méret: nincs adat",
+        "fs_estimate_ok": "Partíció méret: {profile} | Teljes {total}, foglalt {used}, szabad {free} | Várósor {queue} - elfér",
+        "fs_estimate_low": "Partíció méret: {profile} | Teljes {total}, foglalt {used}, szabad {free} | Várósor {queue} - kevés tartalék",
+        "fs_estimate_full": "Partíció méret: {profile} | Teljes {total}, foglalt {used}, szabad {free} | Várósor {queue} - nem fér el",
         "space_check_insufficient": "Kevés a becsült szabad hely.\n\nBecsült szabad hely: {free}\nVárósor mérete: {need}\n\nFeltöltés megszakítva.",
         "space_check_low": "Kevés a becsült szabad hely.\n\nBecsült szabad hely: {free}\nVárósor mérete: {need}\n\nA feltöltés még elindítható, de nagy az open_failed hiba esélye.\nFolytatod?",
         "critical_spiffs_write_error": "Kritikus fájlrendszer írási hiba, a várósor leállítva.",
@@ -68,6 +110,7 @@ TEXT = {
         "tree": "A rádió fájlrendszer tartalma",
         "type": "Típus",
         "size": "Méret",
+        "root": "gyökér",
         "status_ready": "Készen.",
         "status_connecting": "Kapcsolódás folyamatban...",
         "status_maintenance": "Karbantartó mód indítása...",
@@ -93,7 +136,10 @@ TEXT = {
         "ports_none": "Nincs találat",
         "pyserial_missing": "A pyserial nincs telepítve.\nParancs: python -m pip install pyserial",
         "tree_no_selection": "Jelölj ki egy fájlt vagy mappát.",
+        "root_delete_blocked": "A gyökér bejegyzés nem törölhető. Jelölj ki konkrét fájlokat vagy mappákat.",
         "backup_done": "A teljes mentés elkészült.",
+        "backup_verified": "A teljes mentés elkészült és ellenőrizve.",
+        "backup_verify_failed": "A mentés ellenőrzése sikertelen: {path}",
         "restore_done": "A visszaállítás elkészült.",
         "download_done": "A kijelölt fájl mentése elkészült.",
         "upload_done": "A feltöltés elkészült.",
@@ -149,6 +195,7 @@ TEXT = {
         "disconnect": "Disconnect",
         "maintenance": "Start maintenance mode",
         "backup": "Full backup (ZIP)",
+        "backup_verify": "Verify backup",
         "restore": "Restore backup",
         "list": "Refresh file list",
         "delete": "Delete selected",
@@ -157,11 +204,16 @@ TEXT = {
         "download": "Save selected",
         "reboot": "Reboot radio",
         "lang": "Language: HU / EN",
-        "spiffs_capacity": "FS size",
-        "set_spiffs_capacity": "Set FS size",
-        "spiffs_capacity_prompt": "Enter total filesystem partition size in KB.\nLeave empty to disable space checks.",
-        "spiffs_capacity_disabled": "FS space check: disabled",
-        "spiffs_capacity_set": "FS space check enabled: {value} KB",
+        "spiffs_capacity": "Partition size",
+        "set_spiffs_capacity": "Partition size profile",
+        "spiffs_capacity_prompt": "Choose an estimated filesystem profile, or enter a custom total size in KB.",
+        "spiffs_capacity_disabled": "Partition size space check: disabled",
+        "spiffs_capacity_set": "Partition size profile active: {name} ({value} KB)",
+        "spiffs_capacity_custom": "Custom Partition size in KB:",
+        "fs_estimate_unknown": "Partition size: no data",
+        "fs_estimate_ok": "Partition size: {profile} | Total {total}, used {used}, free {free} | Queue {queue} - fits",
+        "fs_estimate_low": "Partition size: {profile} | Total {total}, used {used}, free {free} | Queue {queue} - low reserve",
+        "fs_estimate_full": "Partition size: {profile} | Total {total}, used {used}, free {free} | Queue {queue} - does not fit",
         "space_check_insufficient": "Estimated free space is too low.\n\nEstimated free space: {free}\nQueue size: {need}\n\nUpload aborted.",
         "space_check_low": "Estimated free space is low.\n\nEstimated free space: {free}\nQueue size: {need}\n\nUpload can still be started, but open_failed errors are likely.\nContinue?",
         "critical_spiffs_write_error": "Critical filesystem write error, queue stopped.",
@@ -169,6 +221,7 @@ TEXT = {
         "tree": "Radio filesystem contents",
         "type": "Type",
         "size": "Size",
+        "root": "root",
         "status_ready": "Ready.",
         "status_connecting": "Connecting...",
         "status_maintenance": "Starting maintenance mode...",
@@ -194,7 +247,10 @@ TEXT = {
         "ports_none": "No ports found",
         "pyserial_missing": "pyserial is not installed.\nCommand: python -m pip install pyserial",
         "tree_no_selection": "Select a file or folder.",
+        "root_delete_blocked": "The root entry cannot be deleted. Select specific files or folders.",
         "backup_done": "Full backup completed.",
+        "backup_verified": "Full backup completed and verified.",
+        "backup_verify_failed": "Backup verification failed: {path}",
         "restore_done": "Restore completed.",
         "download_done": "Selected file saved.",
         "upload_done": "Upload completed.",
@@ -431,6 +487,7 @@ class SerialSpiFFSClient:
     def __init__(self):
         self.ser = None
         self.debug_lines: list[str] = []
+        self._line_buffer = bytearray()
 
     def connect(self, port: str, baudrate: int = DEFAULT_BAUDRATE, timeout: float = 0.8):
         if serial is None:
@@ -502,37 +559,48 @@ class SerialSpiFFSClient:
             raise ProtoError("not connected")
         end = time.time() + timeout
         last_noise = ""
-        buf = bytearray()
+        buf = self._line_buffer
+        self._line_buffer = bytearray()
         while time.time() < end:
-            raw = self.ser.read(1)
-            if not raw:
-                continue
-            ch = raw[0]
-            if ch == 13:
-                continue
-            if ch != 10:
-                buf.append(ch)
-                if len(buf) > 4096:
-                    last_noise = buf[:120].decode("utf-8", errors="ignore")
-                    buf.clear()
-                continue
+            while True:
+                newline_at = buf.find(b"\n")
+                if newline_at < 0:
+                    break
+                raw_line = bytes(buf[:newline_at])
+                del buf[:newline_at + 1]
+                raw_line = raw_line.replace(b"\r", b"")
+                if not raw_line:
+                    continue
+                line = raw_line.decode("utf-8", errors="ignore").strip()
+                if not line:
+                    continue
+                self.debug_lines.append(line)
+                self.debug_lines = self.debug_lines[-20:]
+                if not line.startswith("MRSPIFS|"):
+                    last_noise = line
+                    continue
+                self._line_buffer = buf
+                return line[len("MRSPIFS|"):]
 
-            if not buf:
-                continue
-            line = buf.decode("utf-8", errors="ignore").strip()
-            buf.clear()
-            if not line:
-                continue
-            self.debug_lines.append(line)
-            self.debug_lines = self.debug_lines[-20:]
-            if not line.startswith("MRSPIFS|"):
-                last_noise = line
-                continue
-            return line[len("MRSPIFS|"):]
+            if len(buf) > MAX_PROTO_LINE_BYTES:
+                preview = buf[:120].decode("utf-8", errors="ignore")
+                buf.clear()
+                raise ProtoError(f"protocol line too long (starts with: {preview})")
+
+            try:
+                waiting = int(getattr(self.ser, "in_waiting", 0) or 0)
+            except Exception:
+                waiting = 0
+            read_size = min(max(1, waiting), SERIAL_READ_CHUNK_BYTES)
+            raw = self.ser.read(read_size)
+            if raw:
+                buf.extend(raw)
+                end = time.time() + timeout
         if last_noise:
             raise ProtoError(f"protocol timeout (last serial: {last_noise[:120]})")
         if buf:
             tail = buf[:120].decode("utf-8", errors="ignore")
+            buf.clear()
             raise ProtoError(f"protocol timeout (partial serial line: {tail})")
         raise ProtoError("protocol timeout")
 
@@ -627,40 +695,67 @@ class SerialSpiFFSClient:
                 raise ProtoError("|".join(parts))
         return sorted(files, key=lambda x: (x.path.lower(), not x.is_dir))
 
-    def read_file(self, path: str) -> bytes:
+    def read_file(self, path: str, expected_size: int | None = None) -> bytes:
         path = normalize_remote_path(path)
         self._write_line(f"READ|PATH|{path}")
         out = bytearray()
+        corrupt_error: ProtoError | None = None
         while True:
-            parts = self._read_proto_line(timeout=20.0).split("|")
+            parts = self._read_proto_line(timeout=READ_LINE_TIMEOUT).split("|")
             if not parts:
                 continue
             if parts[0] == "READ_BEGIN":
                 continue
             if parts[0] == "DATA" and len(parts) >= 2:
                 b64 = parts[1].strip()
-                if len(b64) % 4 != 0:
-                    raise ProtoError(f"corrupt READ data for {path}: base64 length {len(b64)} is not divisible by 4")
+                remainder = len(b64) % 4
+                if remainder == 1:
+                    if corrupt_error is None:
+                        corrupt_error = ProtoError(f"corrupt READ data for {path}: base64 length {len(b64)} cannot be repaired")
+                    continue
+                if remainder:
+                    b64 += "=" * (4 - remainder)
                 try:
-                    out.extend(base64.b64decode(b64, validate=True))
+                    if corrupt_error is None:
+                        out.extend(base64.b64decode(b64, validate=True))
                 except Exception as e:
-                    raise ProtoError(f"corrupt READ data for {path}: {e}") from e
+                    if corrupt_error is None:
+                        corrupt_error = ProtoError(f"corrupt READ data for {path}: {e}")
                 continue
             if parts[0] == "OK" and len(parts) >= 2 and parts[1] == "READ_END":
+                if corrupt_error is not None:
+                    raise corrupt_error
+                if expected_size is not None and len(out) != expected_size:
+                    raise ProtoError(f"READ size mismatch for {path}: expected {expected_size}, got {len(out)}")
                 return bytes(out)
             if parts[0] == "ERR":
                 raise ProtoError("|".join(parts))
 
-    def write_file(self, path: str, data: bytes):
+    def read_file_retry(self, path: str, expected_size: int | None = None, retries: int = READ_FILE_RETRIES) -> bytes:
+        last_error: Exception | None = None
+        for attempt in range(retries + 1):
+            try:
+                return self.read_file(path, expected_size=expected_size)
+            except Exception as e:
+                last_error = e
+                self.clear_input()
+                if attempt < retries:
+                    time.sleep(0.25)
+                    continue
+                raise
+        raise ProtoError(str(last_error) if last_error else f"READ failed for {path}")
+
+    def write_file(self, path: str, data: bytes, chunk_sizes=None, write_data_timeout: float | None = None, inter_chunk_delay: float = UPLOAD_INTER_CHUNK_DELAY):
         path = normalize_remote_path(path)
         last_err = None
+        chunk_sizes = chunk_sizes or FAST_CHUNK_SIZES
 
         # Safe-fast upload:
         # - first try 192-byte chunks for roughly 2x fewer ACK round-trips than 96
         # - if the firmware rejects/times out, abort immediately and retry at 96
         # - no oversized 512/768/1024 tests, so small files do not sit for minutes
-        for attempt, chunk_size in enumerate(FAST_CHUNK_SIZES, 1):
-            timeout = WRITE_DATA_TIMEOUT_SAFE if chunk_size <= SAFE_CHUNK_SIZE else WRITE_DATA_TIMEOUT_FAST
+        for attempt, chunk_size in enumerate(chunk_sizes, 1):
+            timeout = write_data_timeout if write_data_timeout is not None else (WRITE_DATA_TIMEOUT_SAFE if chunk_size <= SAFE_CHUNK_SIZE else WRITE_DATA_TIMEOUT_FAST)
             try:
                 self.ensure_idle()
                 self._write_line(f"WRITE_BEGIN|PATH|{path}|{len(data)}")
@@ -688,8 +783,8 @@ class SerialSpiFFSClient:
                     self.debug_lines.append(f"UPLOAD_CHUNK={chunk_size}")
                     self.debug_lines = self.debug_lines[-20:]
                     yield idx, total_chunks, uploaded
-                    if UPLOAD_INTER_CHUNK_DELAY:
-                        time.sleep(UPLOAD_INTER_CHUNK_DELAY)
+                    if inter_chunk_delay:
+                        time.sleep(inter_chunk_delay)
 
                 self._write_line("WRITE_END")
                 parts = self._read_proto_line(timeout=WRITE_END_TIMEOUT).split("|")
@@ -762,7 +857,21 @@ class App(tk.Tk):
         self.known_remote_file_paths: dict[tuple[str, int], str] = {}
         self.known_remote_dir_paths: set[str] = {"/"}
         self.queue_stop_reason: str | None = None
+<<<<<<< Updated upstream
+<<<<<<<< Updated upstream:LittleFS_manager/LittleFS-SPIFFS_Partition_Manager_v0.4.py
+        self.fs_profile_key = "disabled"
+        self.fs_profile_name = "Kikapcsolva"
+        self.spiffs_capacity_kb = None
+========
+        self.fs_profile_key = "myradio_896"
+        self.fs_profile_name = "myRadio / 896 KB"
         self.spiffs_capacity_kb = DEFAULT_SPIFFS_CAPACITY_KB
+>>>>>>>> Stashed changes:LittleFS_manager/LittleFS-SPIFFS_Partition_Manager_v0.3.4.py
+=======
+        self.fs_profile_key = "myradio_896"
+        self.fs_profile_name = "myRadio / 896 KB"
+        self.spiffs_capacity_kb = DEFAULT_SPIFFS_CAPACITY_KB
+>>>>>>> Stashed changes
 
         self.title(f"{self.tr('title')} v{APP_VERSION}")
         self.geometry("1180x860")
@@ -788,8 +897,18 @@ class App(tk.Tk):
         self.speed_var = tk.StringVar(value="0 KB/s")
         self.eta_var = tk.StringVar(value="--:--")
         self.failures_var = tk.StringVar(value="0")
+        self.fs_estimate_var = tk.StringVar(value=self.tr("fs_estimate_unknown"))
+<<<<<<< Updated upstream
+<<<<<<<< Updated upstream:LittleFS_manager/LittleFS-SPIFFS_Partition_Manager_v0.4.py
+        self.verify_backup_var = tk.BooleanVar(value=False)
+========
+>>>>>>>> Stashed changes:LittleFS_manager/LittleFS-SPIFFS_Partition_Manager_v0.3.4.py
+=======
+        self.verify_backup_var = tk.BooleanVar(value=False)
+>>>>>>> Stashed changes
 
         self._build_ui()
+        self.update_fs_estimate()
         self.refresh_ports()
         self._tree_scrollbar_after_id = None
         self._queue_tree_scrollbar_after_id = None
@@ -799,10 +918,96 @@ class App(tk.Tk):
         if self._dark_mode:
             self.after(50, lambda: apply_dark_title_bar(self))
         if serial is None:
-            messagebox.showwarning(self.tr("error"), self.tr("pyserial_missing"))
+            self.show_warning(self.tr("error"), self.tr("pyserial_missing"))
 
     def tr(self, key: str) -> str:
         return TEXT[self.lang][key]
+
+    def _prepare_dialog_parent(self):
+        try:
+            self.lift()
+            self.focus_force()
+        except Exception:
+            pass
+        return self
+
+    def show_info(self, title: str, message: str):
+        return self._show_modal_dialog(title, message, "info", ("ok",))
+
+    def show_warning(self, title: str, message: str):
+        return self._show_modal_dialog(title, message, "warning", ("ok",))
+
+    def show_error(self, title: str, message: str):
+        return self._show_modal_dialog(title, message, "error", ("ok",))
+
+    def ask_yes_no(self, title: str, message: str) -> bool:
+        return bool(self._show_modal_dialog(title, message, "question", ("yes", "no")))
+
+    def _dialog_button_text(self, button: str) -> str:
+        if button == "yes":
+            return "Igen" if self.lang == "HU" else "Yes"
+        if button == "no":
+            return "Nem" if self.lang == "HU" else "No"
+        return "OK"
+
+    def _show_modal_dialog(self, title: str, message: str, kind: str, buttons: tuple[str, ...]):
+        self._prepare_dialog_parent()
+        dialog = tk.Toplevel(self)
+        dialog.title(title)
+        dialog.transient(self)
+        dialog.resizable(False, False)
+        bg = "#1e1e1e" if self._dark_mode else "#f0f0f0"
+        dialog.configure(bg=bg)
+        try:
+            icon_path = get_app_icon_path()
+            if icon_path:
+                dialog.iconbitmap(icon_path)
+        except Exception:
+            pass
+
+        result = {"value": buttons[0] == "ok"}
+        frame = ttk.Frame(dialog, padding=18)
+        frame.pack(fill="both", expand=True)
+        body = ttk.Frame(frame)
+        body.pack(fill="both", expand=True)
+        icon_text = {"info": "i", "warning": "!", "error": "X", "question": "?"}.get(kind, "i")
+        icon = ttk.Label(body, text=icon_text, width=3, anchor="center", font=("Segoe UI", 24, "bold"))
+        icon.pack(side="left", padx=(0, 14), anchor="n")
+        text = ttk.Label(body, text=message, justify="left", wraplength=420)
+        text.pack(side="left", fill="both", expand=True)
+
+        button_row = ttk.Frame(frame)
+        button_row.pack(fill="x", pady=(18, 0))
+
+        def close_with(value):
+            result["value"] = value
+            dialog.destroy()
+
+        for button in buttons:
+            value = button in {"ok", "yes"}
+            btn = ttk.Button(button_row, text=self._dialog_button_text(button), command=lambda v=value: close_with(v), width=12)
+            btn.pack(side="right", padx=(8, 0))
+            if button in {"ok", "yes"}:
+                btn.focus_set()
+
+        dialog.update_idletasks()
+        parent_x = self.winfo_rootx()
+        parent_y = self.winfo_rooty()
+        parent_w = max(1, self.winfo_width())
+        parent_h = max(1, self.winfo_height())
+        dialog_w = dialog.winfo_reqwidth()
+        dialog_h = dialog.winfo_reqheight()
+        x = parent_x + max(0, (parent_w - dialog_w) // 2)
+        y = parent_y + max(0, (parent_h - dialog_h) // 2)
+        if dialog_w < parent_w:
+            x = min(max(x, parent_x), parent_x + parent_w - dialog_w)
+        if dialog_h < parent_h:
+            y = min(max(y, parent_y), parent_y + parent_h - dialog_h)
+        dialog.geometry(f"+{x}+{y}")
+        dialog.protocol("WM_DELETE_WINDOW", lambda: close_with(False))
+        dialog.grab_set()
+        dialog.wait_window()
+        return result["value"]
 
     def _build_ui(self):
         top = ttk.Frame(self, padding=8)
@@ -827,6 +1032,8 @@ class App(tk.Tk):
         self.btn_list.pack(side="left", padx=3)
         self.btn_backup = ttk.Button(actions, text=self.tr("backup"), command=self.backup_zip)
         self.btn_backup.pack(side="left", padx=3)
+        self.chk_backup_verify = ttk.Checkbutton(actions, text=self.tr("backup_verify"), variable=self.verify_backup_var)
+        self.chk_backup_verify.pack(side="left", padx=(4, 10))
         self.btn_restore = ttk.Button(actions, text=self.tr("restore"), command=self.restore_zip)
         self.btn_restore.pack(side="left", padx=3)
         self.btn_download = ttk.Button(actions, text=self.tr("download"), command=self.download_selected)
@@ -838,8 +1045,17 @@ class App(tk.Tk):
         self.btn_reboot = ttk.Button(actions, text=self.tr("reboot"), command=self.reboot_radio)
         self.btn_reboot.pack(side="left", padx=3)
 
+        self.connection_progress_row = ttk.Frame(self, padding=(8, 0, 8, 4))
+        self.connection_progress_spacer = ttk.Frame(self.connection_progress_row, width=250)
+        self.connection_progress_spacer.pack(side="left")
+        self.connection_progress_label = ttk.Label(self.connection_progress_row, text=self.tr("status_connecting"))
+        self.connection_progress_label.pack(side="left", padx=(0, 8))
+        self.connection_progress = ttk.Progressbar(self.connection_progress_row, mode="indeterminate", length=360)
+        self.connection_progress.pack(side="left")
+
         self.main_pane = ttk.Panedwindow(self, orient="horizontal")
         self.main_pane.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        self.connection_progress_row.pack_forget()
 
         left = ttk.Frame(self.main_pane)
         right = ttk.Frame(self.main_pane)
@@ -937,6 +1153,8 @@ class App(tk.Tk):
         self.lbl_queue_overall.grid(row=2, column=2, sticky="w", pady=(4, 0))
         self.queue_status_label = ttk.Label(grid, textvariable=self.status_var, wraplength=320, justify="left")
         self.queue_status_label.grid(row=2, column=3, sticky="ew", pady=(4, 0))
+        self.fs_estimate_label = ttk.Label(grid, textvariable=self.fs_estimate_var, wraplength=680, justify="left")
+        self.fs_estimate_label.grid(row=3, column=0, columnspan=4, sticky="ew", pady=(6, 0))
 
         self.after(100, self._apply_initial_layout)
 
@@ -1055,6 +1273,7 @@ class App(tk.Tk):
         try:
             wrap = max(180, self.progress_box.winfo_width() - 340)
             self.queue_status_label.configure(wraplength=wrap)
+            self.fs_estimate_label.configure(wraplength=max(240, self.progress_box.winfo_width() - 40))
         except Exception:
             pass
 
@@ -1075,22 +1294,87 @@ class App(tk.Tk):
         self.after_idle(self._on_window_layout_change)
 
 
-    def set_spiffs_capacity(self):
-        initial = "" if self.spiffs_capacity_kb is None else str(self.spiffs_capacity_kb)
-        value = simpledialog.askstring(
-            self.tr("set_spiffs_capacity"),
-            self.tr("spiffs_capacity_prompt"),
-            initialvalue=initial,
-            parent=self,
-        )
-        if value is None:
-            return
-        parsed = parse_positive_int_or_none(value)
-        self.spiffs_capacity_kb = parsed
-        if parsed is None:
+    def _localized_profile_label(self, key: str, label: str, kb: int | None) -> str:
+        if self.lang == "EN":
+            label = label.replace("Általános", "Generic").replace("Egyedi", "Custom").replace("Kikapcsolva", "Disabled")
+        return label
+
+    def _fs_profile_options(self) -> list[tuple[str, str, int | None]]:
+        return [(key, self._localized_profile_label(key, label, kb), kb) for key, label, kb in FS_PROFILE_CHOICES]
+
+    def _set_fs_profile(self, key: str, name: str, kb: int | None):
+        self.fs_profile_key = key
+        self.fs_profile_name = name
+        self.spiffs_capacity_kb = kb
+        self.update_fs_estimate()
+        if kb is None:
             self.set_status(self.tr("spiffs_capacity_disabled"))
         else:
-            self.set_status(self.tr("spiffs_capacity_set").format(value=parsed))
+            self.set_status(self.tr("spiffs_capacity_set").format(name=name, value=kb))
+
+    def set_spiffs_capacity(self):
+        self._prepare_dialog_parent()
+        dialog = tk.Toplevel(self)
+        dialog.title(self.tr("set_spiffs_capacity"))
+        dialog.transient(self)
+        dialog.resizable(False, False)
+        dialog.configure(bg="#1e1e1e" if self._dark_mode else "#f0f0f0")
+
+        result = {"ok": False}
+        frame = ttk.Frame(dialog, padding=16)
+        frame.pack(fill="both", expand=True)
+        ttk.Label(frame, text=self.tr("spiffs_capacity_prompt"), justify="left", wraplength=420).pack(fill="x")
+
+        options = self._fs_profile_options()
+        label_to_option = {label: (key, label, kb) for key, label, kb in options}
+        initial_label = next((label for key, label, _ in options if key == self.fs_profile_key), options[0][1])
+        profile_var = tk.StringVar(value=initial_label)
+        combo = ttk.Combobox(frame, textvariable=profile_var, values=[label for _, label, _ in options], state="readonly", width=34)
+        combo.pack(fill="x", pady=(12, 8))
+
+        custom_var = tk.StringVar(value="" if self.spiffs_capacity_kb is None else str(self.spiffs_capacity_kb))
+        custom_row = ttk.Frame(frame)
+        custom_row.pack(fill="x")
+        ttk.Label(custom_row, text=self.tr("spiffs_capacity_custom")).pack(side="left")
+        custom_entry = ttk.Entry(custom_row, textvariable=custom_var, width=10)
+        custom_entry.pack(side="left", padx=(8, 0))
+
+        def update_custom_state(*_):
+            selected = label_to_option.get(profile_var.get(), options[0])
+            state = tk.NORMAL if selected[0] == "custom" else tk.DISABLED
+            custom_entry.configure(state=state)
+
+        def close_ok():
+            selected = label_to_option.get(profile_var.get(), options[0])
+            key, name, kb = selected
+            if key == "custom":
+                kb = parse_positive_int_or_none(custom_var.get())
+                if kb is None:
+                    self.show_warning(self.tr("warning"), self.tr("spiffs_capacity_custom"))
+                    return
+                name = self._localized_profile_label(key, "Egyedi", kb)
+            result["ok"] = True
+            result["value"] = (key, name, kb)
+            dialog.destroy()
+
+        buttons = ttk.Frame(frame)
+        buttons.pack(fill="x", pady=(16, 0))
+        ttk.Button(buttons, text="OK", command=close_ok, width=12).pack(side="right")
+        ttk.Button(buttons, text="Mégse" if self.lang == "HU" else "Cancel", command=dialog.destroy, width=12).pack(side="right", padx=(0, 8))
+        profile_var.trace_add("write", update_custom_state)
+        update_custom_state()
+
+        dialog.update_idletasks()
+        x = self.winfo_rootx() + max(0, (self.winfo_width() - dialog.winfo_reqwidth()) // 2)
+        y = self.winfo_rooty() + max(0, (self.winfo_height() - dialog.winfo_reqheight()) // 2)
+        dialog.geometry(f"+{x}+{y}")
+        dialog.grab_set()
+        combo.focus_set()
+        dialog.wait_window()
+
+        if result.get("ok"):
+            key, name, kb = result["value"]
+            self._set_fs_profile(key, name, kb)
 
     def toggle_lang(self):
         self.lang = "EN" if self.lang == "HU" else "HU"
@@ -1100,13 +1384,21 @@ class App(tk.Tk):
         self.btn_maint.config(text=self.tr("maintenance"))
         self.btn_lang.config(text=self.tr("lang"))
         self.btn_capacity.config(text=self.tr("spiffs_capacity"))
+        for key, label, _ in self._fs_profile_options():
+            if key == self.fs_profile_key and key != "custom":
+                self.fs_profile_name = label
+                break
+        if self.fs_profile_key == "custom":
+            self.fs_profile_name = "Egyedi" if self.lang == "HU" else "Custom"
         self.btn_list.config(text=self.tr("list"))
         self.btn_backup.config(text=self.tr("backup"))
+        self.chk_backup_verify.config(text=self.tr("backup_verify"))
         self.btn_restore.config(text=self.tr("restore"))
         self.btn_download.config(text=self.tr("download"))
         self.btn_mkdir.config(text=self.tr("mkdir"))
         self.btn_delete.config(text=self.tr("delete"))
         self.btn_reboot.config(text=self.tr("reboot"))
+        self.connection_progress_label.config(text=self.tr("status_connecting"))
         self.btn_queue_add_files.config(text=self.tr("queue_add_files"))
         self.btn_queue_add_folder.config(text=self.tr("queue_add_folder"))
         self.btn_queue_start.config(text=self.tr("queue_start"))
@@ -1115,6 +1407,7 @@ class App(tk.Tk):
         self.tree.heading("#0", text=self.tr("tree"))
         self.tree.heading("type", text=self.tr("type"))
         self.tree.heading("size", text=self.tr("size"))
+        self.tree.tag_configure("root_link")
         self.left_panel.config(text=self.tr("tree"))
         self.queue_panel.config(text=self.tr("queue"))
         self.progress_box.config(text=self.tr("queue_progress"))
@@ -1136,8 +1429,32 @@ class App(tk.Tk):
                 self.status_var.set(self.tr(key))
                 break
         apply_theme(self, self._dark_mode)
+        self.update_fs_estimate()
+<<<<<<< Updated upstream
+<<<<<<<< Updated upstream:LittleFS_manager/LittleFS-SPIFFS_Partition_Manager_v0.4.py
+        self.populate_tree(restore_state=self._capture_tree_state())
+========
+>>>>>>>> Stashed changes:LittleFS_manager/LittleFS-SPIFFS_Partition_Manager_v0.3.4.py
+=======
+        self.populate_tree(restore_state=self._capture_tree_state())
+>>>>>>> Stashed changes
         self.refresh_queue_tree()
         self.after_idle(self._on_window_layout_change)
+
+    def _start_connection_progress(self):
+        try:
+            self.connection_progress_label.config(text=self.tr("status_connecting"))
+            self.connection_progress_row.pack(fill="x", before=self.main_pane)
+            self.connection_progress.start(12)
+        except Exception:
+            pass
+
+    def _stop_connection_progress(self):
+        try:
+            self.connection_progress.stop()
+            self.connection_progress_row.pack_forget()
+        except Exception:
+            pass
 
     def set_status(self, text: str):
         self.after(0, lambda: self.status_var.set(text))
@@ -1149,6 +1466,7 @@ class App(tk.Tk):
             "could not enter maintenance mode": "Nem sikerült belépni a karbantartó módba",
             "unexpected BEGIN reply": "Váratlan BEGIN válasz",
             "protocol timeout": "Kommunikációs időtúllépés",
+            "protocol line too long": "Túl hosszú protokollsor",
             "not connected": "Nincs kapcsolat",
             "bad DELETE reply": "Hibás törlési válasz",
             "delete verification failed": "A törlés ellenőrzése sikertelen",
@@ -1173,7 +1491,7 @@ class App(tk.Tk):
 
     def run_job(self, fn, done=None):
         if self.worker and self.worker.is_alive():
-            messagebox.showwarning(self.tr("warning"), self.tr("queue_running"))
+            self.show_warning(self.tr("warning"), self.tr("queue_running"))
             return False
 
         def wrap():
@@ -1183,11 +1501,11 @@ class App(tk.Tk):
                     self.after(0, lambda: done(result))
             except Exception as e:
                 last_step = self.status_var.get()
-                self.after(0, lambda: messagebox.showerror(self.tr("error"), f"{self._localize_error(str(e))}\n\n{self.tr('last_step')}: {last_step}"))
+                self.after(0, lambda: self.show_error(self.tr("error"), f"{self._localize_error(str(e))}\n\n{self.tr('last_step')}: {last_step}"))
                 self.set_status(self.tr("error"))
                 self.after(0, self._reset_queue_runtime_labels)
             finally:
-                pass
+                self.after(0, self._stop_connection_progress)
 
         self.worker = threading.Thread(target=wrap, daemon=True)
         self.worker.start()
@@ -1229,7 +1547,9 @@ class App(tk.Tk):
             self.populate_tree()
             self.set_status(self.tr("maintenance_ok"))
 
-        self.run_job(job, done)
+        self._start_connection_progress()
+        if not self.run_job(job, done):
+            self._stop_connection_progress()
 
     def disconnect(self):
         if self.queue_running:
@@ -1261,6 +1581,7 @@ class App(tk.Tk):
             self.files = files
             self._rebuild_known_remote_dirs(files)
             self.populate_tree()
+            self.update_fs_estimate()
             self.set_status(f"{len(files)} {self.tr('file')}")
 
         self.run_job(job, done)
@@ -1282,6 +1603,23 @@ class App(tk.Tk):
         for part in dir_parts:
             current += "/" + part
             self.known_remote_dir_paths.add(current)
+
+    def _forget_remote_path_tree(self, path: str):
+        path = normalize_remote_path(path)
+        if path == "/":
+            self.known_remote_file_paths.clear()
+            self.known_remote_dir_paths = {"/"}
+            return
+        prefix = path.rstrip("/") + "/"
+        self.known_remote_dir_paths = {
+            d for d in self.known_remote_dir_paths
+            if d == "/" or (d != path and not d.startswith(prefix))
+        }
+        self.known_remote_file_paths = {
+            key: remembered_path
+            for key, remembered_path in self.known_remote_file_paths.items()
+            if remembered_path != path and not remembered_path.startswith(prefix)
+        }
 
     def _guess_folder_for_basename_only_file(self, name: str) -> str | None:
         """
@@ -1310,10 +1648,11 @@ class App(tk.Tk):
                 # uploaded into a folder, restore that folder path for display/actions.
                 # If this is a known myRadio asset type (for example VLW fonts),
                 # restore the conventional folder even after restarting the manager.
-                name = Path(path).name.lower()
-                remembered = self.known_remote_file_paths.get((name, size)) or self.known_remote_file_paths.get((name, -1))
-                guessed_folder = self._guess_folder_for_basename_only_file(name)
-                fixed_path = remembered or (normalize_remote_path(f"{guessed_folder}/{name}") if guessed_folder else path)
+                basename = Path(path).name
+                lookup_name = basename.lower()
+                remembered = self.known_remote_file_paths.get((lookup_name, size)) or self.known_remote_file_paths.get((lookup_name, -1))
+                guessed_folder = self._guess_folder_for_basename_only_file(basename)
+                fixed_path = remembered or (normalize_remote_path(f"{guessed_folder}/{basename}") if guessed_folder else path)
                 if fixed_path != path:
                     self._remember_remote_path(fixed_path, size, False)
             else:
@@ -1381,6 +1720,8 @@ class App(tk.Tk):
     def populate_tree(self, restore_state: dict | None = None):
         self.tree.delete(*self.tree.get_children())
         self.tree_item_info = {}
+        root_item_id = self.tree.insert("", "end", text="..", values=(self.tr("root"), ""), tags=("root_link",))
+        self.tree_item_info[root_item_id] = ("/", False)
 
         # Some ESP32 SPIFFS/LittleFS list implementations return only FILE rows,
         # even when the file path contains folders.  Build a real visual folder
@@ -1435,15 +1776,17 @@ class App(tk.Tk):
 
             selected_ids = []
             for path in restore_state.get("selected_paths", []):
-                item_id = nodes.get(path)
+                item_id = root_item_id if path == "/" else nodes.get(path)
                 if item_id:
                     selected_ids.append(item_id)
             if selected_ids:
                 self.tree.selection_set(selected_ids)
 
             focus_path = restore_state.get("focus_path")
-            if focus_path and focus_path in nodes:
-                self.tree.focus(nodes[focus_path])
+            if focus_path:
+                focus_id = root_item_id if focus_path == "/" else nodes.get(focus_path)
+                if focus_id:
+                    self.tree.focus(focus_id)
 
             def restore_view():
                 try:
@@ -1489,7 +1832,7 @@ class App(tk.Tk):
         self.after(0, self.refresh_queue_tree)
 
     def queue_add_files(self):
-        paths = filedialog.askopenfilenames()
+        paths = filedialog.askopenfilenames(parent=self._prepare_dialog_parent())
         if not paths:
             return
         target_root = self._selected_upload_target_root()
@@ -1500,13 +1843,13 @@ class App(tk.Tk):
         self.set_status(self.tr("queue_added"))
 
     def queue_add_folder(self):
-        folder = filedialog.askdirectory()
+        folder = filedialog.askdirectory(parent=self._prepare_dialog_parent())
         if not folder:
             return
         root = Path(folder)
         files = [p for p in root.rglob("*") if p.is_file()]
         if not files:
-            messagebox.showwarning(self.tr("warning"), self.tr("empty_folder"))
+            self.show_warning(self.tr("warning"), self.tr("empty_folder"))
             return
         selection = self.tree.selection()
         selected_remote = None
@@ -1551,6 +1894,7 @@ class App(tk.Tk):
             if item in selected:
                 self.queue_tree.selection_add(item)
         self.failures_var.set(str(failures))
+        self.update_fs_estimate()
         self.after_idle(self._resize_queue_tree_columns)
         self._schedule_queue_tree_scrollbar_refresh()
         if not tasks:
@@ -1572,7 +1916,7 @@ class App(tk.Tk):
 
     def remove_selected_tasks(self):
         if self.queue_running:
-            messagebox.showwarning(self.tr("warning"), self.tr("queue_running"))
+            self.show_warning(self.tr("warning"), self.tr("queue_running"))
             return
         selected = set(self.queue_tree.selection())
         if not selected:
@@ -1583,15 +1927,18 @@ class App(tk.Tk):
 
     def clear_completed_tasks(self):
         if self.queue_running:
-            messagebox.showwarning(self.tr("warning"), self.tr("queue_running"))
+            self.show_warning(self.tr("warning"), self.tr("queue_running"))
             return
+        self._clear_completed_tasks_now()
+        self.refresh_queue_tree()
+
+    def _clear_completed_tasks_now(self):
         with self.queue_lock:
             self.upload_queue = [t for t in self.upload_queue if t.status not in {"done", "cancelled"}]
-        self.refresh_queue_tree()
 
     def retry_failed_tasks(self):
         if self.queue_running:
-            messagebox.showwarning(self.tr("warning"), self.tr("queue_running"))
+            self.show_warning(self.tr("warning"), self.tr("queue_running"))
             return
         changed = False
         with self.queue_lock:
@@ -1616,10 +1963,15 @@ class App(tk.Tk):
     def _current_used_bytes(self) -> int:
         return sum(rf.size for rf in self.files)
 
-    def _estimated_free_bytes(self) -> int | None:
+    def _estimated_total_bytes(self) -> int | None:
         if self.spiffs_capacity_kb is None:
             return None
-        total = self.spiffs_capacity_kb * 1024
+        return self.spiffs_capacity_kb * 1024
+
+    def _estimated_free_bytes(self) -> int | None:
+        total = self._estimated_total_bytes()
+        if total is None:
+            return None
         used = self._current_used_bytes()
         return max(0, total - used)
 
@@ -1627,13 +1979,35 @@ class App(tk.Tk):
         with self.queue_lock:
             return sum(t.size for t in self.upload_queue if t.status in {"waiting", "retrying"})
 
+    def update_fs_estimate(self):
+        total = self._estimated_total_bytes()
+        if total is None:
+            self.fs_estimate_var.set(self.tr("fs_estimate_unknown"))
+            return
+        used = self._current_used_bytes()
+        free = max(0, total - used)
+        queue = self._pending_queue_bytes()
+        if queue > free:
+            key = "fs_estimate_full"
+        elif free - queue < FS_SAFETY_FLOOR_BYTES:
+            key = "fs_estimate_low"
+        else:
+            key = "fs_estimate_ok"
+        self.fs_estimate_var.set(self.tr(key).format(
+            profile=self.fs_profile_name,
+            total=fmt_size(total),
+            used=fmt_size(used),
+            free=fmt_size(free),
+            queue=fmt_size(queue),
+        ))
+
     def _preflight_check_available_space(self) -> bool:
         free_bytes = self._estimated_free_bytes()
         pending_bytes = self._pending_queue_bytes()
         if free_bytes is None or pending_bytes <= 0:
             return True
         if pending_bytes > free_bytes:
-            messagebox.showwarning(
+            self.show_warning(
                 self.tr("warning"),
                 self.tr("space_check_insufficient").format(
                     free=fmt_size(free_bytes),
@@ -1641,9 +2015,8 @@ class App(tk.Tk):
                 ),
             )
             return False
-        safety_floor = 96 * 1024
-        if free_bytes - pending_bytes < safety_floor:
-            return messagebox.askyesno(
+        if free_bytes - pending_bytes < FS_SAFETY_FLOOR_BYTES:
+            return self.ask_yes_no(
                 self.tr("warning"),
                 self.tr("space_check_low").format(
                     free=fmt_size(free_bytes),
@@ -1657,12 +2030,12 @@ class App(tk.Tk):
 
     def start_queue(self):
         if self.queue_running:
-            messagebox.showwarning(self.tr("warning"), self.tr("queue_running"))
+            self.show_warning(self.tr("warning"), self.tr("queue_running"))
             return
         with self.queue_lock:
             pending = [t for t in self.upload_queue if t.status in {"waiting", "retrying"}]
         if not pending:
-            messagebox.showwarning(self.tr("warning"), self.tr("queue_empty_start"))
+            self.show_warning(self.tr("warning"), self.tr("queue_empty_start"))
             return
         if not self._preflight_check_available_space():
             return
@@ -1683,17 +2056,17 @@ class App(tk.Tk):
 
         def done(_):
             self._set_queue_controls_enabled(True)
-            self.clear_completed_tasks()
+            self._clear_completed_tasks_now()
             self.refresh_queue_tree()
             if self.queue_stop_reason:
                 self.set_status(self.queue_stop_reason)
-                messagebox.showwarning(self.tr("warning"), self.queue_stop_reason)
+                self.show_warning(self.tr("warning"), self.queue_stop_reason)
             elif self.cancel_event.is_set():
                 self.set_status(self.tr("queue_cancelled_done"))
             else:
                 self.set_status(self.tr("queue_finished"))
             self.cancel_event.clear()
-            self.refresh_both_views(background=True)
+            self.after(50, lambda: self.refresh_both_views(background=True))
             self._reset_queue_runtime_labels(keep_status=True)
 
         started = self.run_job(job, done)
@@ -1875,46 +2248,84 @@ class App(tk.Tk):
             self.refresh_queue_tree()
 
         if background:
+            if self.worker and self.worker.is_alive():
+                self.after(100, lambda: self.refresh_both_views(background=True))
+                return
             self.run_job(job, done)
         else:
             done(self.client.list_files() if self.client.ser else self.files)
 
     def backup_zip(self):
-        out = filedialog.asksaveasfilename(title=self.tr("save_backup_title"), defaultextension=".zip", filetypes=[("ZIP", "*.zip")], initialfile="myradio_spiffs_mentes.zip" if self.lang == "HU" else "myradio_spiffs_backup.zip")
+        out = filedialog.asksaveasfilename(title=self.tr("save_backup_title"), defaultextension=".zip", filetypes=[("ZIP", "*.zip")], initialfile="myradio_spiffs_mentes.zip" if self.lang == "HU" else "myradio_spiffs_backup.zip", parent=self._prepare_dialog_parent())
         if not out:
             return
         out_path = Path(out)
 
         def job():
             self.ensure_connected()
-            files = self.client.list_files()
+            files = self._apply_known_remote_paths(self.client.list_files())
             if not files:
                 raise ProtoError(self.tr("no_files"))
             self.set_status(self.tr("status_saving"))
-            total_files = len(files)
-            total_bytes = sum(rf.size for rf in files)
+            backup_files = [rf for rf in files if not getattr(rf, "is_dir", False)]
+            if not backup_files:
+                raise ProtoError(self.tr("no_files"))
+            backup_dirs = {normalize_remote_path(rf.path) for rf in files if getattr(rf, "is_dir", False)}
+            for rf in backup_files:
+                parts = [part for part in normalize_remote_path(rf.path).strip("/").split("/") if part]
+                current = ""
+                for part in parts[:-1]:
+                    current += "/" + part
+                    backup_dirs.add(current)
+            total_files = len(backup_files)
+            total_bytes = sum(rf.size for rf in backup_files)
             transferred = 0
             start = time.time()
+            manifest = []
             self.after(0, self._reset_transfer_metrics)
             with zipfile.ZipFile(out_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-                for idx, rf in enumerate(files, 1):
-                    data = self.client.read_file(rf.path)
-                    zf.writestr(rf.path.lstrip("/"), data)
+                for dir_path in sorted(backup_dirs, key=lambda x: (x.count("/"), x.lower())):
+                    arcname = dir_path.strip("/")
+                    if arcname:
+                        zf.writestr(arcname.rstrip("/") + "/", b"")
+                for idx, rf in enumerate(backup_files, 1):
+                    remote_path = normalize_remote_path(rf.path)
+                    expected_size = int(getattr(rf, "size", 0))
+                    arcname = remote_path.lstrip("/")
+                    data = self.client.read_file_retry(remote_path, expected_size=expected_size)
+                    zf.writestr(arcname, data)
+                    manifest.append((remote_path, arcname, expected_size))
                     transferred += len(data)
-                    self._set_transfer_metrics(Path(rf.path).name, idx, total_files, transferred, total_bytes, start)
-                    self.set_status(f"{self.tr('status_saving')} {idx}/{total_files} - {rf.path}")
-            return True
+                    self._set_transfer_metrics(Path(remote_path).name, idx, total_files, transferred, total_bytes, start)
+                    self.set_status(f"{self.tr('status_saving')} {idx}/{total_files} - {remote_path}")
 
-        def done(_):
+            if self.verify_backup_var.get():
+                transferred = 0
+                start = time.time()
+                self.after(0, self._reset_transfer_metrics)
+                with zipfile.ZipFile(out_path, "r") as zf:
+                    for idx, (remote_path, arcname, expected_size) in enumerate(manifest, 1):
+                        saved_data = zf.read(arcname)
+                        live_data = self.client.read_file_retry(remote_path, expected_size=expected_size)
+                        if live_data != saved_data:
+                            raise ProtoError(self.tr("backup_verify_failed").format(path=remote_path))
+                        transferred += len(saved_data)
+                        self._set_transfer_metrics(Path(remote_path).name, idx, total_files, transferred, total_bytes, start)
+                        self.set_status(f"{self.tr('status_verifying')} {idx}/{total_files} - {remote_path}")
+                return "verified"
+            return "done"
+
+        def done(result):
             self._reset_transfer_metrics()
             self.refresh_both_views(background=True)
-            self.set_status(self.tr("backup_done"))
-            messagebox.showinfo(self.tr("done"), self.tr("backup_done"))
+            message = self.tr("backup_verified") if result == "verified" else self.tr("backup_done")
+            self.set_status(message)
+            self.show_info(self.tr("done"), message)
 
         self.run_job(job, done)
 
     def restore_zip(self):
-        zpath = filedialog.askopenfilename(title=self.tr("open_backup_title"), filetypes=[("ZIP", "*.zip")])
+        zpath = filedialog.askopenfilename(title=self.tr("open_backup_title"), filetypes=[("ZIP", "*.zip")], parent=self._prepare_dialog_parent())
         if not zpath:
             return
         zp = Path(zpath)
@@ -1922,11 +2333,12 @@ class App(tk.Tk):
         def job():
             self.ensure_connected()
             self.set_status(self.tr("status_restoring"))
-            current = self.client.list_files()
-            for rf in sorted(current, key=lambda x: (x.path.count("/"), x.path.lower()), reverse=True):
-                self.client.delete_file(rf.path)
+            current = self._apply_known_remote_paths(self.client.list_files())
+            current_files = {normalize_remote_path(rf.path) for rf in current if not getattr(rf, "is_dir", False)}
+            current_dirs = {normalize_remote_path(rf.path) for rf in current if getattr(rf, "is_dir", False)}
             with zipfile.ZipFile(zp, "r") as zf:
                 names = [n for n in zf.namelist() if not n.endswith("/")]
+                restore_paths = {normalize_remote_path("/" + name) for name in names}
                 total_files = max(1, len(names))
                 total_bytes = sum(len(zf.read(name)) for name in names) if names else 0
                 transferred = 0
@@ -1936,16 +2348,48 @@ class App(tk.Tk):
                     data = zf.read(name)
                     remote_path = normalize_remote_path("/" + name)
                     self._ensure_remote_parent_dirs(remote_path)
-                    for _, _, uploaded in self.client.write_file(remote_path, data):
+                    if remote_path in current_files:
+                        try:
+                            self.client.delete_file(remote_path)
+                            current_files.discard(remote_path)
+                        except Exception:
+                            pass
+                    for _, _, uploaded in self.client.write_file(
+                        remote_path,
+                        data,
+                        chunk_sizes=RESTORE_CHUNK_SIZES,
+                        write_data_timeout=WRITE_DATA_TIMEOUT_RESTORE,
+                        inter_chunk_delay=RESTORE_INTER_CHUNK_DELAY,
+                    ):
                         self._set_transfer_metrics(Path(name).name, idx, total_files, transferred + uploaded, total_bytes, start)
                         self.set_status(f"{self.tr('status_restoring')} {idx}/{total_files} - {remote_path}")
                     transferred += len(data)
+                    current_files.discard(remote_path)
+
+            extra_files = current_files - restore_paths
+            for target in sorted(extra_files, key=lambda x: (x.count("/"), x.lower()), reverse=True):
+                try:
+                    self.client.delete_file(target)
+                    self._forget_remote_path_tree(target)
+                except Exception:
+                    pass
+            for target in sorted(current_dirs, key=lambda x: (x.count("/"), x.lower()), reverse=True):
+                if target == "/":
+                    continue
+                prefix = target.rstrip("/") + "/"
+                if any(path == target or path.startswith(prefix) for path in restore_paths):
+                    continue
+                try:
+                    self.client.rmdir(target)
+                    self._forget_remote_path_tree(target)
+                except Exception:
+                    pass
             return True
 
         def done(_):
             self._reset_transfer_metrics()
             self.refresh_both_views(background=True)
-            messagebox.showinfo(self.tr("done"), self.tr("restore_done"))
+            self.show_info(self.tr("done"), self.tr("restore_done"))
 
         self.run_job(job, done)
 
@@ -1954,7 +2398,7 @@ class App(tk.Tk):
         name = simpledialog.askstring(
             self.tr("mkdir"),
             self.tr("enter_dir_name"),
-            parent=self,
+            parent=self._prepare_dialog_parent(),
         )
         if name is None:
             return
@@ -1972,20 +2416,20 @@ class App(tk.Tk):
         def done(_):
             self._remember_remote_path(remote_path, 0, True)
             self.refresh_both_views(background=True)
-            messagebox.showinfo(self.tr("done"), self.tr("mkdir_done"))
+            self.show_info(self.tr("done"), self.tr("mkdir_done"))
 
         self.run_job(job, done)
 
     def download_selected(self):
         selection = self.tree.selection()
         if not selection:
-            messagebox.showwarning(self.tr("warning"), self.tr("tree_no_selection"))
+            self.show_warning(self.tr("warning"), self.tr("tree_no_selection"))
             return
         path, is_file = self._item_remote_path(selection[0])
         if not is_file:
-            messagebox.showwarning(self.tr("warning"), self.tr("tree_no_selection"))
+            self.show_warning(self.tr("warning"), self.tr("tree_no_selection"))
             return
-        out = filedialog.asksaveasfilename(title=self.tr("save_selected_title"), initialfile=Path(path).name)
+        out = filedialog.asksaveasfilename(title=self.tr("save_selected_title"), initialfile=Path(path).name, parent=self._prepare_dialog_parent())
         if not out:
             return
         out_path = Path(out)
@@ -1993,27 +2437,31 @@ class App(tk.Tk):
         def job():
             self.ensure_connected()
             self.set_status(self.tr("status_downloading"))
-            data = self.client.read_file(path)
+            expected_size = next((rf.size for rf in self.files if normalize_remote_path(rf.path) == normalize_remote_path(path)), None)
+            data = self.client.read_file_retry(path, expected_size=expected_size)
             out_path.write_bytes(data)
             return True
 
         def done(_):
             self.refresh_both_views(background=True)
-            messagebox.showinfo(self.tr("done"), self.tr("download_done"))
+            self.show_info(self.tr("done"), self.tr("download_done"))
 
         self.run_job(job, done)
 
     def delete_selected(self):
         selection = self.tree.selection()
         if not selection:
-            messagebox.showwarning(self.tr("warning"), self.tr("tree_no_selection"))
+            self.show_warning(self.tr("warning"), self.tr("tree_no_selection"))
             return
 
         selected_items = [self._item_remote_path(item_id) for item_id in selection]
+        if any(path == "/" for path, _ in selected_items):
+            self.show_warning(self.tr("warning"), self.tr("root_delete_blocked"))
+            return
 
         def job():
             self.ensure_connected()
-            files = self.client.list_files()
+            files = self._apply_known_remote_paths(self.client.list_files())
             all_file_paths = [f.path for f in files if not getattr(f, "is_dir", False)]
             all_dir_paths = [f.path for f in files if getattr(f, "is_dir", False)]
             target_files = set()
@@ -2049,7 +2497,9 @@ class App(tk.Tk):
                     except Exception as rmdir_error:
                         dir_errors.append(f"{target}: {rmdir_error or delete_error}")
 
-            remaining = self.client.list_files()
+            for path, _ in requested_paths:
+                self._forget_remote_path_tree(path)
+            remaining = self._apply_known_remote_paths(self.client.list_files())
             remaining_paths = [f.path for f in remaining]
             still_present = []
             for path, is_file in requested_paths:
@@ -2071,7 +2521,7 @@ class App(tk.Tk):
 
         def done(_):
             self.refresh_both_views(background=True)
-            messagebox.showinfo(self.tr("done"), self.tr("delete_done"))
+            self.show_info(self.tr("done"), self.tr("delete_done"))
 
         self.run_job(job, done)
 
@@ -2084,7 +2534,7 @@ class App(tk.Tk):
 
         def done(_):
             self.disconnect()
-            messagebox.showinfo(self.tr("done"), self.tr("reboot_done"))
+            self.show_info(self.tr("done"), self.tr("reboot_done"))
 
         self.run_job(job, done)
 

@@ -1,8 +1,8 @@
 // clang-format off
 /* https://trip5.github.io/ehRadio_myoptions/generator.html
-   https://github.com/VaraiTamas/yoRadio.git
+   https://github.com/VaraiTamas/VTomRadio.git
    Használat előtt olvasd el!!! - Read the before use !!!
-   https://github.com/VaraiTamas/yoRadio/blob/main/README.md !!!
+   https://github.com/VaraiTamas/VTomRadio/blob/main/README.md !!!
 
   - A sor elején a // jel inaktívvá teszi a parancsot ezért a fordító nem veszi figyelembe! 
     Ezzel tudod beállítani a te hardveredmek megfelelő összeállítást.
@@ -105,7 +105,7 @@ Supported languages: HU, PL, NL, GR, DE (UA Local/namedays/namedays_UA.h is not 
 /*----- This way, you can wake up the device with a remote control and another button. -----*/
 //#define BTN_MODE ENC_BTNB
 #define WAKE_PIN1 IR_PIN
-#define WAKE_PIN2 ENC2_BTNB
+#define WAKE_PIN2 ENC_BTNB
 
 /*----- SD CARD -----*/
 // #define SDC_CS     18
@@ -141,5 +141,3 @@ When music is not playing (stopped or volume is 0), the pin is set to LOW. This 
 // #define dlnaIDX  21
 
 //#define POWER_LED 38      // Button LED pin (will be turned on when player is on)
-
-// Serial LittleFS maintenance mode is now controlled in Web UI: Tools > Serial LittleFS maintenance mode

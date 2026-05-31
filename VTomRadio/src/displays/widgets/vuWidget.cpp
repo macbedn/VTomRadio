@@ -13,6 +13,11 @@ VuWidget::~VuWidget() {
         delete _spr;
         _spr = nullptr;
     }
+    if (_labelSpr) {
+        _labelSpr->deleteSprite();
+        delete _labelSpr;
+        _labelSpr = nullptr;
+    }
 #endif
 }
 
@@ -47,6 +52,38 @@ void VuWidget::_recreateSprite() {
 
     _spr->fillSprite(_bgcolor);
 }
+
+static void vu_prepareLabelSprite(LGFX_Sprite*& spr, int16_t width, int16_t height) {
+    if (width <= 0 || height <= 0) { return; }
+
+    if (!spr) {
+        spr = new LGFX_Sprite(&dsp);
+        if (!spr) { return; }
+        spr->setColorDepth(16);
+        spr->setPsram(true);
+        spr->setTextDatum(top_left);
+    }
+
+    if (spr->width() != width || spr->height() != height) {
+        spr->deleteSprite();
+        spr->createSprite(width, height);
+    }
+}
+
+static bool vu_applyLabelFont(LGFX_Sprite* spr, uint8_t textsize) {
+    if (!spr) { return false; }
+
+    if (textsize == 9 && font_vlw_9) {
+        if (spr->loadFont(font_vlw_9)) {
+            spr->setTextSize(1);
+            return true;
+        }
+    }
+
+    spr->setFont(nullptr);
+    spr->setTextSize(2);
+    return false;
+}
 #endif
 
 void VuWidget::init(VU_WidgetConfig wconf,
@@ -80,6 +117,7 @@ void VuWidget::init(VU_WidgetConfig wconf,
 
 #ifndef DSP_OLED
     _recreateSprite();
+    _labelBoxHeight = 0;
 #endif
 
     _labelsDrawn = false;
@@ -102,6 +140,7 @@ void VuWidget::switchMode(bool bidirectional) {
 
 #ifndef DSP_OLED
     _recreateSprite();
+    _labelBoxHeight = 0;
 #endif
 
     _labelsDrawn = false;
@@ -270,7 +309,6 @@ void VuWidget::_draw() {
         if (pxR_w > 0) { _spr->fillRect(pxR_shadow, 0, pxR_w, _vuConf.height, peak_bright); }
         _spr->fillRect(pxR, 0, peak_width, _vuConf.height, peak_color);
     }
-
         _spr->pushSprite(_vuConf.left, _vuConf.top);
 #endif
     } else {
@@ -388,76 +426,102 @@ void VuWidget::_draw() {
             const int MID_HALF = _vuConf.space / 2;
 
             int label_left_L = (sprite_center_on_screen - MID_HALF) - _vuConf.labelwidth;
-            int label_left_R = (sprite_center_on_screen + MID_HALF);
             int labelTop = _vuConf.top - _vuConf.labelheight - 2;
 
-            bool fontLoaded = false;
+            const int labelWidth = (_vuConf.labelwidth * 2) + _vuConf.space;
+            vu_prepareLabelSprite(_labelSpr, labelWidth, _vuConf.labelheight);
+            if (!_labelSpr || _labelSpr->width() == 0 || _labelSpr->height() == 0) { return; }
 
-            if (_vuConf.textsize == 9 && font_vlw_9) {
-                if (dsp.loadFont(font_vlw_9)) {
-                    fontLoaded = true;
-                    dsp.setTextSize(1);
-                } else {
-                    dsp.setFont(nullptr);
-                    dsp.setTextSize(2);
-                }
-            } else {
-                dsp.setFont(nullptr);
-                dsp.setTextSize(2);
+            bool fontLoaded = vu_applyLabelFont(_labelSpr, _vuConf.textsize);
+            const int labelPadTop = 2;
+            const int labelPadBottom = 0;
+            int  labelBoxHeight = _vuConf.labelheight;
+            const int textH = _labelSpr->fontHeight();
+            if (textH > 0) {
+                const int minNeeded = textH + labelPadTop + labelPadBottom;
+                if (minNeeded > labelBoxHeight) { labelBoxHeight = minNeeded; }
             }
 
-            int y_center = labelTop + (_vuConf.labelheight / 2);
-            if (fontLoaded) {
-                y_center += 1;
+            if (_labelSpr->height() != labelBoxHeight) {
+                vu_prepareLabelSprite(_labelSpr, labelWidth, labelBoxHeight);
+                if (!_labelSpr || _labelSpr->width() == 0 || _labelSpr->height() == 0) { return; }
+                fontLoaded = vu_applyLabelFont(_labelSpr, _vuConf.textsize);
             }
-            dsp.setTextColor(config.theme.vulrtext);
-            dsp.setTextDatum(MC_DATUM);
 
-            dsp.drawRect(label_left_L, labelTop, _vuConf.labelwidth, _vuConf.labelheight, config.theme.vulrbox);
-            dsp.drawString("L", label_left_L + (_vuConf.labelwidth / 2), y_center);
+            _labelSpr->fillSprite(config.theme.background);
+            _labelBoxHeight = static_cast<uint16_t>(labelBoxHeight);
+            labelTop = _vuConf.top - labelBoxHeight - 2;
 
-            dsp.drawRect(label_left_R, labelTop, _vuConf.labelwidth, _vuConf.labelheight, config.theme.vulrbox);
-            dsp.drawString("R", label_left_R + (_vuConf.labelwidth / 2), y_center);
+            _labelSpr->setTextColor(config.theme.vulrtext, config.theme.background);
+            _labelSpr->setTextDatum(top_center);
+            const int localYText = labelPadTop;
+
+            _labelSpr->drawString("L", _vuConf.labelwidth / 2, localYText);
+            _labelSpr->drawRect(0, 0, _vuConf.labelwidth, labelBoxHeight, config.theme.vulrbox);
+
+            _labelSpr->drawString("R", _vuConf.labelwidth + _vuConf.space + (_vuConf.labelwidth / 2), localYText);
+            _labelSpr->drawRect(_vuConf.labelwidth + _vuConf.space, 0, _vuConf.labelwidth, labelBoxHeight, config.theme.vulrbox);
+
+            _labelSpr->pushSprite(label_left_L, labelTop);
 
             _labelsDrawn = true;
 
-            if (fontLoaded) { dsp.unloadFont(); }
+            if (fontLoaded) { _labelSpr->unloadFont(); }
 #endif
         } else {
 #ifndef DSP_OLED
             int  label_left = _vuConf.left - _vuConf.labelwidth - 4;
             bool fontLoaded = false;
 
-            if (_vuConf.textsize == 9 && font_vlw_9) {
-                if (dsp.loadFont(font_vlw_9)) {
-                    fontLoaded = true;
-                    dsp.setTextSize(1);
-                } else {
-                    dsp.setFont(nullptr);
-                    dsp.setTextSize(2);
-                }
-            } else {
-                dsp.setFont(nullptr);
-                dsp.setTextSize(2);
-            }
-
             if (label_left >= 0) {
-                int top_L = _vuConf.top - (_vuConf.labelheight - _vuConf.height);
+                const int labelPadTop = 1;
+                const int labelPadBottom = 0;
+                int labelBoxHeight = _vuConf.labelheight;
+
+                vu_prepareLabelSprite(_labelSpr, _vuConf.labelwidth, (_vuConf.labelheight * 2) + _vuConf.space);
+                if (!_labelSpr || _labelSpr->width() == 0 || _labelSpr->height() == 0) { return; }
+
+                fontLoaded = vu_applyLabelFont(_labelSpr, _vuConf.textsize);
+                const int textH = _labelSpr->fontHeight();
+                if (textH > 0) {
+                    const int minNeeded = textH + labelPadTop + labelPadBottom;
+                    if (minNeeded > labelBoxHeight) { labelBoxHeight = minNeeded; }
+                }
+
+                const int neededSpriteHeight = (labelBoxHeight * 2) + _vuConf.space;
+                if (_labelSpr->height() != neededSpriteHeight) {
+                    vu_prepareLabelSprite(_labelSpr, _vuConf.labelwidth, neededSpriteHeight);
+                    if (!_labelSpr || _labelSpr->width() == 0 || _labelSpr->height() == 0) { return; }
+                    fontLoaded = vu_applyLabelFont(_labelSpr, _vuConf.textsize);
+                }
+
+                _labelBoxHeight = static_cast<uint16_t>(labelBoxHeight);
+
+                int top_L = _vuConf.top - (labelBoxHeight - _vuConf.height);
                 int top_R = _vuConf.top + _vuConf.height + _vuConf.space;
 
-                dsp.setTextColor(config.theme.vulrtext);
-                dsp.setTextDatum(MC_DATUM);
+                (void)top_R;
 
-                dsp.drawRect(label_left, top_L, _vuConf.labelwidth, _vuConf.labelheight, config.theme.vulrbox);
-                dsp.drawString("L", label_left + _vuConf.labelwidth / 2, top_L + _vuConf.labelheight / 2 + 1);
+                _labelSpr->fillSprite(config.theme.background);
 
-                dsp.drawRect(label_left, top_R, _vuConf.labelwidth, _vuConf.labelheight, config.theme.vulrbox);
-                dsp.drawString("R", label_left + _vuConf.labelwidth / 2, top_R + _vuConf.labelheight / 2 + 1);
+                _labelSpr->setTextColor(config.theme.vulrtext, config.theme.background);
+                _labelSpr->setTextDatum(top_center);
+
+                const int localTopL = 0;
+                const int localTopR = labelBoxHeight + _vuConf.space;
+
+                _labelSpr->drawString("L", _vuConf.labelwidth / 2, localTopL + labelPadTop);
+                _labelSpr->drawRect(0, localTopL, _vuConf.labelwidth, labelBoxHeight, config.theme.vulrbox);
+
+                _labelSpr->drawString("R", _vuConf.labelwidth / 2, localTopR + labelPadTop);
+                _labelSpr->drawRect(0, localTopR, _vuConf.labelwidth, labelBoxHeight, config.theme.vulrbox);
+
+                _labelSpr->pushSprite(label_left, top_L);
 
                 _labelsDrawn = true;
             }
 
-            if (fontLoaded) { dsp.unloadFont(); }
+            if (fontLoaded && _labelSpr) { _labelSpr->unloadFont(); }
 #else
             dsp.setTextColor(0xF);
             dsp.setTextSize(1);
@@ -489,6 +553,8 @@ void VuWidget::loop() {
 
 void VuWidget::_clear() {
 #ifndef DSP_OLED
+    const int clearLabelHeight = max<int>(_vuConf.labelheight, _labelBoxHeight);
+
     int clearW = 0;
     int clearH = 0;
 
@@ -519,18 +585,18 @@ void VuWidget::_clear() {
 
         const int MID_HALF = _vuConf.space / 2;
         int       label_left_L = (sprite_center_on_screen - MID_HALF) - _vuConf.labelwidth;
-        int       labelTop = _vuConf.top - _vuConf.labelheight - 2;
+        int       labelTop = _vuConf.top - clearLabelHeight - 2;
         int       total_width = 2 * _vuConf.labelwidth + _vuConf.space;
 
-        dsp.fillRect(label_left_L, labelTop, total_width, _vuConf.labelheight, config.theme.background);
+        dsp.fillRect(label_left_L, labelTop, total_width, clearLabelHeight, config.theme.background);
     } else {
         int label_left = _vuConf.left - _vuConf.labelwidth - 4;
 
         if (label_left >= 0) {
-            int top_L = _vuConf.top - (_vuConf.labelheight - _vuConf.height);
+            int top_L = _vuConf.top - (clearLabelHeight - _vuConf.height);
             int top_R = _vuConf.top + _vuConf.height + _vuConf.space;
-            dsp.fillRect(label_left, top_L, _vuConf.labelwidth, _vuConf.labelheight, config.theme.background);
-            dsp.fillRect(label_left, top_R, _vuConf.labelwidth, _vuConf.labelheight, config.theme.background);
+            dsp.fillRect(label_left, top_L, _vuConf.labelwidth, clearLabelHeight, config.theme.background);
+            dsp.fillRect(label_left, top_R, _vuConf.labelwidth, clearLabelHeight, config.theme.background);
         }
     }
 
@@ -540,6 +606,16 @@ void VuWidget::_clear() {
 #endif
 
     _labelsDrawn = false;
+
+#ifndef DSP_OLED
+    if (_labelSpr) {
+        _labelSpr->deleteSprite();
+        delete _labelSpr;
+        _labelSpr = nullptr;
+    }
+
+    _labelBoxHeight = 0;
+#endif
 }
 
 void VuWidget::setLabelsDrawn(bool value) {

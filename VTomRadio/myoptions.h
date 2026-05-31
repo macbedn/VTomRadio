@@ -38,8 +38,8 @@ Supported languages: HU, PL, NL, GR, DE (UA Local/namedays/namedays_UA.h is not 
 // #define HTTP_PASS ""               /* HTTP basic authentication password */
 
 /*----- LCD DISPLAY -----*/
-//#define DSP_MODEL DSP_ILI9488
-#define DSP_MODEL DSP_ST7796
+#define DSP_MODEL DSP_ILI9488
+//#define DSP_MODEL DSP_ST7796
 
 /*----- DISPLAY PIN SETS -----*/
 #define TFT_DC         9
@@ -109,7 +109,7 @@ Supported languages: HU, PL, NL, GR, DE (UA Local/namedays/namedays_UA.h is not 
 
 /*----- SD CARD -----*/
 // #define SDC_CS     18
-// #define SDSPISPEED 4000000 /* 4MHz - Slower speed to prevent display flicker on shared SPI bus */
+// #define SD_SPIPINS 12, 13, 11, SDC_CS  // SCK, MISO, MOSI, CS
 
 /*----- Ezzel a beállítással nincs görgetés az időjárás sávon. -----*/
 /*----- With this setting there is no scrolling on the weather bar. -----*/

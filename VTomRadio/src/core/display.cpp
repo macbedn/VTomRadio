@@ -393,7 +393,6 @@ void Display::_applyRssiMode() {
 }
 
 void Display::_swichMode(displayMode_e newmode) {
-    Serial.printf("Display::_swichMode: %d\n", newmode);
 #    ifdef USE_NEXTION
     nextion.putRequest({NEWMODE, newmode});
 #    endif

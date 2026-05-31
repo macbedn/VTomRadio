@@ -37,7 +37,8 @@ class LGFX_Base : public lgfx::LGFX_Device {
     applySpiHost(cfg);
     cfg.pin_sclk = 12;
     cfg.pin_mosi = 11;
-    cfg.pin_miso = 13;
+    cfg.pin_miso = 13;  
+    cfg.use_lock = true;
     cfg.pin_dc = TFT_DC;
     cfg.freq_write = 40000000;
     cfg.freq_read = 16000000;

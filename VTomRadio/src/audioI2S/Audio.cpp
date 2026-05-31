@@ -4046,6 +4046,11 @@ ps_ptr<char> Audio::m3u8redirection(uint8_t* codec) {
 void Audio::processLocalFile() {
     if (!(m_audiofile && m_f_running && m_dataMode == AUDIO_LOCALFILE)) return; // guard
 
+    if (!m_audiofile) {
+        m_f_running = false;
+        return;
+    }
+
     m_prlf.availableBytes = 0;
     m_prlf.bytesAddedToBuffer = 0;
 
@@ -6037,8 +6042,15 @@ int32_t Audio::audioFileRead(uint8_t* buff, size_t len) {
     // This method standardized reading files, regardless of the source (local or web) and the correct number of the bytes read must be determined.
     int32_t res = -1;
 
+    if (m_dataMode == AUDIO_LOCALFILE && !m_audiofile) {
+        // stopSong() can close m_audiofile while processLocalFile() is still in flight.
+        // Never call File::read() on an invalid/closed handle.
+        return -1;
+    }
+
     if (!buff && !len) { // read one byte
         if (m_dataMode == AUDIO_LOCALFILE) {
+            if (!m_audiofile) return -1;
             res = m_audiofile.read();
             if (res >= 0) m_audioFilePosition++;
         } else {
@@ -6049,6 +6061,10 @@ int32_t Audio::audioFileRead(uint8_t* buff, size_t len) {
         uint32_t t = millis();
         while (len > 0) {
             if (m_dataMode == AUDIO_LOCALFILE) {
+                if (!m_audiofile) {
+                    res = -1;
+                    break;
+                }
                 readed_bytes = m_audiofile.read(buff + offset, len);
 
                 if (readed_bytes >= 0) {

@@ -912,7 +912,6 @@ size_t NetServer::chunkedHtmlPageCallback(uint8_t *buffer, size_t maxLen, size_t
 #endif
   size_t canread = (needread > maxLen) ? maxLen : needread;
   DBGVB("[%s] seek to %d in %s and read %d bytes with maxLen=%d", __func__, index, netserver.chunkedPathBuffer, canread, maxLen);
-  //netserver.loop();
   requiredfile.seek(index, SeekSet);
   requiredfile.read(buffer, canread);
   index += canread;
@@ -1454,19 +1453,19 @@ bool NetServer::importPlaylist() {
   char linePl[BUFLEN * 3];
   int sOvol;
   _readPlaylistLine(tempfile, linePl, sizeof(linePl) - 1);
-  if (config.parseCSV(linePl, nsBuf, nsBuf2, sOvol)) {
+  if (config.parseCSV(linePl, nsBuf, sizeof(nsBuf), nsBuf2, sizeof(nsBuf2), sOvol)) {
     tempfile.close();
     LittleFS.rename(TMP_PATH, PLAYLIST_PATH);
     requestOnChange(PLAYLISTSAVED, 0);
     return true;
   }
-  if (config.parseJSON(linePl, nsBuf, nsBuf2, sOvol)) {
+  if (config.parseJSON(linePl, nsBuf, sizeof(nsBuf), nsBuf2, sizeof(nsBuf2), sOvol)) {
     File playlistfile = LittleFS.open(PLAYLIST_PATH, "w");
     snprintf(linePl, sizeof(linePl) - 1, "%s\t%s\t%d", nsBuf, nsBuf2, 0);
     playlistfile.println(linePl);
     while (tempfile.available()) {
       _readPlaylistLine(tempfile, linePl, sizeof(linePl) - 1);
-      if (config.parseJSON(linePl, nsBuf, nsBuf2, sOvol)) {
+      if (config.parseJSON(linePl, nsBuf, sizeof(nsBuf), nsBuf2, sizeof(nsBuf2), sOvol)) {
         snprintf(linePl, sizeof(linePl) - 1, "%s\t%s\t%d", nsBuf, nsBuf2, 0);
         playlistfile.println(linePl);
       }

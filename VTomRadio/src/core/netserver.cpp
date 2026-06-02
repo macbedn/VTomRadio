@@ -233,7 +233,7 @@ static bool shouldRedirectEmptyFsRequest(AsyncWebServerRequest *request) {
 
 static bool hasRequiredWebboardFiles() {
   const char *requiredWebFiles[] = {
-    "dragpl.js", "ir.css", "irrecord.html", "ir.js", "logo.svg", "options.html", "player.html", "script.js", "style.css", "updform.html", "theme.css", "theme-editor.html"
+    "dragpl.js", "ir.css", "irrecord.html", "ir.js", "logo.svg", "options.html", "player.html", "script.js", "style.css", "updform.html", "theme.css", "theme-editor.html", "volcurve.html"
   };
   const char *requiredFonts[] = {
     "roboto9.vlw", "roboto12.vlw", "roboto16.vlw", "roboto18.vlw", "roboto20.vlw", "roboto22.vlw", "roboto24.vlw", "roboto26.vlw", "roboto36.vlw"
@@ -868,6 +868,71 @@ bool NetServer::begin(bool quiet) {
   );
 #endif
 
+  webserver.on("/volcurve.csv", HTTP_GET, [](AsyncWebServerRequest *request) {
+    AsyncWebServerResponse *response = request->beginResponse(200, "text/csv", config.volumeCurveToCsv());
+    response->addHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+    response->addHeader("Pragma", "no-cache");
+    response->addHeader("Content-Disposition", "attachment; filename=\"volcurve.csv\"");
+    request->send(response);
+  });
+
+  webserver.on(
+    "/volcurve.csv", HTTP_POST,
+    [](AsyncWebServerRequest *request) {
+      if (!request->_tempFile) {
+        request->send(400, "application/json", "{\"error\":\"csv body missing\"}");
+        return;
+      }
+
+      request->_tempFile.close();
+      File file = LittleFS.open(TMP_PATH, "r");
+      if (!file) {
+        request->send(500, "application/json", "{\"error\":\"cannot read uploaded csv\"}");
+        return;
+      }
+
+      String csv;
+      csv.reserve(file.size() + 1);
+      while (file.available()) {
+        csv += file.readStringUntil('\n');
+        csv += '\n';
+      }
+      file.close();
+      LittleFS.remove(TMP_PATH);
+
+      String importError;
+      if (!config.applyVolumeCurveCsv(csv.c_str(), &importError)) {
+        if (!importError.length()) {
+          importError = "invalid volume curve csv";
+        }
+        importError.replace("\\", "\\\\");
+        importError.replace("\"", "\\\"");
+        request->send(400, "application/json", "{\"error\":\"" + importError + "\"}");
+        return;
+      }
+
+      config.saveVolumeCurveToFile();
+      request->send(200, "application/json", "{\"ok\":true}");
+    },
+    nullptr,
+    [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+      if (index == 0) {
+        if (LittleFS.exists(TMP_PATH)) {
+          LittleFS.remove(TMP_PATH);
+        }
+        request->_tempFile = LittleFS.open(TMP_PATH, "w");
+      }
+
+      if (request->_tempFile && len > 0) {
+        request->_tempFile.write(data, len);
+      }
+
+      if (index + len == total && request->_tempFile) {
+        request->_tempFile.flush();
+      }
+    }
+  );
+
   webserver.serveStatic("/", LittleFS, "/www/");
   webserver.begin();
 
@@ -1223,6 +1288,18 @@ void NetServer::processQueue() {
         );
         break;
       case BALANCE: sprintf(wsBuf, "{\"payload\":[{\"id\": \"balance\", \"value\": %d}]}", config.store.balance); break;
+      case GETVOLCURVE:
+      {
+        wsBuf[0] = '\0';
+        strcat(wsBuf, "{\"payload\":[");
+        for (int i = 1; i <= 21; i++) {
+          char item[48];
+          snprintf(item, sizeof(item), "{\"id\":\"vc%d\",\"value\":%d}%s", i, (int)player.getVolumeCurveDbPoint(i), (i < 21) ? "," : "");
+          strcat(wsBuf, item);
+        }
+        strcat(wsBuf, "]}");
+        break;
+      }
       case SDINIT:  sprintf(wsBuf, "{\"sdinit\": %d}", SDC_CS != 255); break;
       case GETPLAYERMODE:
       {  //DLNA mod
@@ -1575,7 +1652,7 @@ void handleUpload(AsyncWebServerRequest *request, String filename, size_t index,
       if (!LittleFS.exists("/www")) {
         LittleFS.mkdir("/www");
       }
-      if (lowerFilename == "playlist.csv" || lowerFilename == "wifi.csv") {
+      if (lowerFilename == "playlist.csv" || lowerFilename == "wifi.csv" || lowerFilename == "volcurve.csv") {
         spath = "/data/";
         if (!LittleFS.exists("/data")) {
           LittleFS.mkdir("/data");
@@ -1608,6 +1685,8 @@ void handleUpload(AsyncWebServerRequest *request, String filename, size_t index,
       request->_tempFile.close();
       if (lowerFilename == "playlist.csv") {
         config.indexPlaylist();
+      } else if (lowerFilename == "volcurve.csv") {
+        config.loadVolumeCurveFromFile();
       }
     }
   }
@@ -1696,7 +1775,7 @@ void handleNotFound(AsyncWebServerRequest *request) {
     if (
       strcmp(request->url().c_str(), PLAYLIST_PATH) == 0 || strcmp(request->url().c_str(), SSIDS_PATH) == 0 || strcmp(request->url().c_str(), INDEX_PATH) == 0
       || strcmp(request->url().c_str(), TMP_PATH) == 0 || strcmp(request->url().c_str(), PLAYLIST_SD_PATH) == 0
-      || strcmp(request->url().c_str(), INDEX_SD_PATH) == 0
+      || strcmp(request->url().c_str(), INDEX_SD_PATH) == 0 || strcmp(request->url().c_str(), VOLCURVE_PATH) == 0
 #ifdef USE_DLNA  //DLNA mod
       || strcmp(request->url().c_str(), PLAYLIST_DLNA_PATH) == 0 || strcmp(request->url().c_str(), INDEX_DLNA_PATH) == 0
 #endif

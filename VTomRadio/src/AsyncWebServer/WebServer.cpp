@@ -22,7 +22,7 @@
 #include "WebHandlerImpl.h"
 
 #ifndef ASYNCWEBSERVER_RX_TIMEOUT
-  #define ASYNCWEBSERVER_RX_TIMEOUT 10
+  #define ASYNCWEBSERVER_RX_TIMEOUT 0
 #endif
 
 bool ON_STA_FILTER(AsyncWebServerRequest *request) {

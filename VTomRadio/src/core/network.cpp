@@ -38,6 +38,12 @@ void network_set_timeinfo(const struct tm& in) {
 void MyNetwork::WiFiReconnected(WiFiEvent_t event, WiFiEventInfo_t info) {
     network.beginReconnect = false;
     player.lockOutput = false;
+    if (strlen(config.store.mdnsname) > 0) {
+        MDNS.end();
+        if (MDNS.begin(config.store.mdnsname)) {
+            MDNS.addService("http", "tcp", 80);
+        }
+    }
     delay(100);
     display.putRequest(NEWMODE, PLAYER);
     if (config.getMode() == PM_SDCARD) {
@@ -200,11 +206,20 @@ void MyNetwork::begin() {
 }
 
 void MyNetwork::setWifiParams() {
+    static bool wifiEventsRegistered = false;
     WiFi.setSleep(false);
-    WiFi.onEvent(WiFiReconnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
-    WiFi.onEvent(WiFiLostConnection, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+    if (!wifiEventsRegistered) {
+        WiFi.onEvent(WiFiReconnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
+        WiFi.onEvent(WiFiLostConnection, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+        wifiEventsRegistered = true;
+    }
     // config.setTimeConf(); //??
-    if (strlen(config.store.mdnsname) > 0) MDNS.begin(config.store.mdnsname);
+    if (strlen(config.store.mdnsname) > 0) {
+        MDNS.end();
+        if (MDNS.begin(config.store.mdnsname)) {
+            MDNS.addService("http", "tcp", 80);
+        }
+    }
     Serial.printf("##[BOOT]#\tWeb UI: http://%s/\n", WiFi.localIP().toString().c_str());
 }
 

@@ -6438,21 +6438,23 @@ void Audio::calculateVolumeLimits() { // is calculated when the volume or balanc
     constexpr float MIN_DB = -60.0f; // quiet
     constexpr float MAX_DB = 0.0f;   // full level
 
-    float t = (float)m_audio_items.cur_volume / (float)m_audio_items.volume_steps;
-    // clamp
-    if (t < 0.0f) t = 0.0f;
-    if (t > 1.0f) t = 1.0f;
-    float vol;
-    // alsó tartomány finoman visszafogva (nem túl hangos)
-    if (t < 0.5f) {
-        vol = t * t * 1.3f; // enyhén exponenciális
-    } else {
-        // felső tartomány lineárisabb
-        float x = (t - 0.5f) / 0.5f;
-        vol = 0.3f + x * 0.7f;
-    }
-    // headroom
-    vol *= 0.9f;
+    auto volumeToLinear = [&](float volume, uint8_t steps) {
+        if (volume <= 0.0f) {
+            return 0.0f; // real silence
+        }
+
+        float t = volume / (float)steps; // 0.0f ... 1.0f
+        t = fminf(fmaxf(t, 0.0f), 1.0f);
+
+        // float dB = MIN_DB + t * (MAX_DB - MIN_DB);
+        float dB = m_volumeCurve ? m_volumeCurve(t) : (-112.0f * t * t * t + 172.0f * t * t + MIN_DB);
+        dB = fminf(fmaxf(dB, MIN_DB), MAX_DB);
+
+        return powf(10.0f, dB / 20.0f);
+    };
+
+    float vol = volumeToLinear(m_audio_items.cur_volume, m_audio_items.volume_steps);
+
     float l_db = 0.0f;
     float r_db = 0.0f;
     if (m_audio_items.balance > 0.0f) { // emphasize on the right → quieter on the left

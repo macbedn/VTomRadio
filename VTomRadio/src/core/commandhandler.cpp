@@ -142,6 +142,57 @@ bool CommandHandler::exec(const char* command, const char* value, uint8_t cid) {
         netserver.requestOnChange(GETACTIVE, cid);
         return true;
     }
+    if (strEquals(command, "getvolcurve")) {
+        netserver.requestOnChange(GETVOLCURVE, cid);
+        return true;
+    }
+
+    if (strncmp(command, "vcurve", 6) == 0) {
+        int idx = atoi(command + 6);
+        if (idx >= 1 && idx <= 21) {
+            float db = atof(value);
+            int dbInt = (int)db;
+            if (dbInt < -60) dbInt = -60;
+            if (dbInt > 0) dbInt = 0;
+
+            // Keep manual slider edits monotonic: current point cannot go below the previous one,
+            // and lower rows are pulled up as needed.
+            if (idx > 1 && dbInt < config.store.volumeCurveDb[idx - 2]) {
+                dbInt = config.store.volumeCurveDb[idx - 2];
+            }
+
+            bool   changed = false;
+            int8_t prev = static_cast<int8_t>(dbInt);
+
+            if (config.store.volumeCurveDb[idx - 1] != prev) {
+                config.saveValue(&config.store.volumeCurveDb[idx - 1], prev);
+                changed = true;
+            }
+
+            for (int i = idx; i < 21; ++i) {
+                int8_t cur = config.store.volumeCurveDb[i];
+                if (cur < prev) {
+                    cur = prev;
+                    config.saveValue(&config.store.volumeCurveDb[i], cur);
+                    changed = true;
+                }
+                prev = cur;
+            }
+
+            if (changed) {
+                float lut[22];
+                lut[0] = -60.0f;
+                for (int i = 1; i <= 21; ++i) {
+                    lut[i] = (float)config.store.volumeCurveDb[i - 1];
+                }
+                player.setVolumeCurveDbLut(lut, 22);
+            }
+
+            netserver.requestOnChange(GETVOLCURVE, cid);
+            return true;
+        }
+    }
+
     if (strEquals(command, "newmode")) {
         config.newConfigMode = atoi(value);
         netserver.requestOnChange(CHANGEMODE, cid);

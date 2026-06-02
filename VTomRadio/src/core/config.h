@@ -19,6 +19,7 @@
 #define TMP_PATH      "/data/tmpfile.txt"
 #define INDEX_PATH    "/data/index.dat"
 #define THEME_PATH    "/data/theme.csv"
+#define VOLCURVE_PATH "/data/volcurve.csv"
 
 #define PLAYLIST_SD_PATH "/data/playlistsd.csv"
 #define INDEX_SD_PATH    "/data/indexsd.dat"
@@ -212,6 +213,7 @@ struct config_t {
     bool    clockAmPmStyle;
     bool    rssiAsText;
     bool    serialLittlefsEnabled;
+    int8_t  volumeCurveDb[21]; // step 1..21, dB values in range -60..0
 };
 #if IR_PIN != 255
 struct IRCommand {
@@ -294,6 +296,11 @@ class Config {
     bool    loadThemeFromFile(const char* path = THEME_PATH);
     bool    saveThemeToFile();
     bool    applyThemeCsv(const char* csvData);
+    bool    loadVolumeCurveFromFile(const char* path = VOLCURVE_PATH);
+    bool    saveVolumeCurveToFile(const char* path = VOLCURVE_PATH);
+    bool    applyVolumeCurveCsv(const char* csvData, String* errorOut = nullptr);
+    String  volumeCurveToCsv() const;
+    void    setDefaultVolumeCurve();
     bool    setThemeColorByName(const char* name, uint8_t r, uint8_t g, uint8_t b);
     bool    getThemeColorByName(const char* name, uint16_t& color) const;
     String  themeToJson() const;

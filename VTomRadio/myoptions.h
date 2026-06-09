@@ -40,6 +40,7 @@ Supported languages: HU, PL, NL, GR, DE (UA Local/namedays/namedays_UA.h is not 
 /*----- LCD DISPLAY -----*/
 //#define DSP_MODEL DSP_ILI9488
 #define DSP_MODEL DSP_ST7796
+//#define DSP_MODEL DSP_ILI9341
 
 /*----- DISPLAY PIN SETS -----*/
 #define TFT_DC         9
@@ -53,8 +54,8 @@ Supported languages: HU, PL, NL, GR, DE (UA Local/namedays/namedays_UA.h is not 
 */
 
 /*----- Touch SPI -----*/
-//#define TS_MODEL TS_MODEL_XPT2046
-//#define TS_CS    3
+// #define TS_MODEL TS_MODEL_XPT2046
+// #define TS_CS    3
 
 /*----- Touch I2C -----*/
 //#define TS_MODEL TS_MODEL_FT6X36
@@ -88,9 +89,9 @@ Supported languages: HU, PL, NL, GR, DE (UA Local/namedays/namedays_UA.h is not 
 //#define ENC2_INTERNALPULLUP	true
 
 /*----- CLOCK MODUL RTC DS3132 -----*/
-//#define RTC_SCL			     7
-//#define RTC_SDA			     8
-//#define RTC_MODULE DS3231
+////#define RTC_SCL			     7
+////#define RTC_SDA			     8
+//// #define RTC_MODULE DS3231
 
 /*----- REMOTE CONTROL INFRARED RECEIVER -----*/
 /*----- Alvásból ébresztéshez a GPIO 2 -őt kell használni, mert a GPIO 38 nem RTC pin. A PCB-n át kell kötni! -----*/

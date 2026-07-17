@@ -151,8 +151,9 @@ static bool serviceMaintenanceMode() {
 }
 
 void setup() {
-    Serial.begin(460800); 
+    Serial.begin(115200); //Serial.begin(460800); 
     delay(100);
+
     EEPROM.begin(EEPROM_SIZE);
     serial_littlefs_begin(Serial);
     serialLittlefsEnabled = loadSerialLittlefsEnabledFromEeprom();
@@ -160,9 +161,16 @@ void setup() {
 #if IR_PIN != 255
     irQueue = xQueueCreate(4, sizeof(IRCommand));
     config.eepromRead(EEPROM_START_IR, config.ircodes);
-    irWakeup();
+    irWakeup(); // Megnézi, hogy jó e a kód, és ha igen, akkor ébreszti a rádiót, ha nem, akkor visszaaltatja. 
 #endif
-
+#if PWR_AMP != 255 // "PWR_AMP"
+    pinMode(PWR_AMP, OUTPUT);
+    digitalWrite(PWR_AMP, HIGH);
+#endif
+#if (POWER_LED != 255) // "POWER_LED"
+    pinMode(POWER_LED, OUTPUT);
+    digitalWrite(POWER_LED, HIGH);
+#endif
     if (serialLittlefsEnabled) {
         // Boot window: ESP 4 masodpercig varja a maintenance kapcsolatot.
         // A Python HELLO -> BEGIN kezfogassal lep be; END paranccsal vagy idle timeout
@@ -233,8 +241,6 @@ void setup() {
     clock_tts_setup();
     startClockTtsTask();
     Audio::audio_info_callback = my_audio_info; // "audio_change" audiohandlers.h ban kezelve.
-    pinMode(POWER_LED, OUTPUT);
-    if (POWER_LED != 255) { digitalWrite(POWER_LED, HIGH); }
     pm.on_end_setup();
 }
 

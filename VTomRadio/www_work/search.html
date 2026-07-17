@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<!--
+  Author: Mirosław B.
+  Date: September 2025
+  Version: 2.0
+  Uses Radio Browser API (https://api.radio-browser.info/)
+  Uses FlagCDN API for country flags (https://flagcdn.com)
+  Description: This module allows users to search for radio stations 
+  from the Radio Browser database and add them to their playlist.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VTom Radio - Radio Search</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="theme.css">
+    <style>
+#searchcontent{max-width:440px;padding:20px;margin:0 auto;text-align:center}
+#radiosearchform{margin:20px auto;max-width:400px}
+.searchrow{margin-bottom:15px;display:flex;flex-direction:column;align-items:center}
+.searchrow label{margin-bottom:5px;text-align:center;font-weight:bold}
+.searchrow input{width:400px;height:40px;padding:8px;border:2px solid var(--input-border);border-radius:5px;background:var(--main-bg-color);color:var(--main-text-color);line-height:normal;box-sizing:border-box}
+.searchrow input:focus{outline:none;border-color:var(--accent-color)}
+.searchrow select{width:400px;height:40px;padding:8px;border:2px solid var(--input-border);border-radius:5px;background:var(--main-bg-color);color:var(--main-text-color);line-height:normal;box-sizing:border-box;scrollbar-color:var(--accent-dark) var(--main-bg-color);scrollbar-width:thin}
+.searchrow select:focus{outline:none;border-color:var(--accent-color)}
+.searchrow select::-webkit-scrollbar{width:5px;background-color:var(--main-bg-color)}
+.searchrow select::-webkit-scrollbar-thumb{background:var(--accent-dark)}
+.searchrow select::-webkit-scrollbar-thumb:hover{background:var(--accent-color)}
+.searchrow select::-webkit-scrollbar-track{background:var(--main-bg-color)}
+.formbuttons{display:flex;gap:15px;margin-top:20px;justify-content:center}
+.fb.disabled{background:var(--input-border)!important;cursor:not-allowed!important;opacity:0.6;pointer-events:none}
+#radioplayer{margin:20px auto;padding:15px;background:var(--odd-bg-color);border-radius:5px;max-width:400px}
+#radiopreview{width:100%;margin-bottom:10px}
+#radioplayerinfo{font-size:14px;color:var(--main-hl-color)}
+#radioresults{margin:20px auto;max-width:400px}
+#radioresultscontent{position:relative;scroll-behavior:smooth;scrollbar-color:var(--accent-dark) var(--main-bg-color);overflow:auto;overflow-y:auto;border:solid 1px var(--accent-color);height:540px;width:100%;background:var(--main-bg-color)}
+.radiostation{display:flex;overflow:hidden;background:var(--main-bg-color);cursor:pointer;padding:8px 0;align-items:center;border-bottom:none}
+.radiostation:nth-child(even){background:var(--odd-bg-color)}
+.radiostation:hover{color:var(--main-text-color);background:var(--playlist-hover)}
+.radioname{flex:2;font-size:16px;padding:0 0 0 16px;text-transform:uppercase;word-break:break-word;font-weight:bold;color:var(--accent-dark)}
+.radiocountry{flex:0 0 60px;text-align:center;font-size:14px;color:var(--accent-dark);display:flex;align-items:center;justify-content:center}
+.radiocodec{flex:0 0 60px;text-align:center;text-transform:uppercase;font-size:14px;color:var(--accent-dark)}
+.radiobitrate{flex:0 0 60px;text-align:center;font-size:14px;color:var(--accent-dark)}
+.radioactions{flex:0 0 80px;display:flex;gap:5px;justify-content:center;padding-right:10px}
+#loadmorecontainer{text-align:center;margin-top:10px;position:relative;left:-10px}
+.fb.small{padding:4px 12px;font-size:14px;min-width:100px}
+.action-btn{width:30px;height:30px;border-radius:5px;border:1px solid var(--accent-color);background:transparent;color:var(--accent-color);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:bold}
+.action-btn:hover{background:var(--accent-color);color:var(--accent-text-color)}
+#progress{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:1000}
+#progress.hidden{display:none}
+.close-btn{width:40px;height:40px;border-radius:50%;border:3px solid var(--accent-color);background:transparent;color:var(--accent-color);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s ease}
+.close-btn:hover{background:var(--accent-color);color:var(--accent-text-color)}
+.close-btn svg{width:24px;height:24px}
+#radioresultscontent{scrollbar-color:var(--accent-dark) var(--main-bg-color);scrollbar-width:thin}
+#radioresultscontent::-webkit-scrollbar{width:5px;background-color:var(--main-bg-color)}
+#radioresultscontent::-webkit-scrollbar-thumb{background:var(--accent-dark)}
+#radioresultscontent::-webkit-scrollbar-thumb:hover{background:var(--accent-color)}
+#radioresultscontent::-webkit-scrollbar-track{background:var(--main-bg-color)}
+#searchcontent, #progress {visibility: hidden;}
+body {background-color: var(--main-bg-color);}
+body.content-loaded #searchcontent,
+body.content-loaded #progress {visibility: visible;}
+    </style>
+</head>
+<body>
+    <div id="searchcontent">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+            <div class="close-btn modeweb" onclick="goBackToPlayer()" title="Back to player" style="position: relative; top: auto; right: auto;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M15 4L7 12L15 20" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <div id="logo" style="flex: 1; display: flex; justify-content: center;">
+            </div>
+            <div style="width: 40px;"></div>
+        </div>
+        <h2 class="pagetitle">Radio Search</h2>
+        <div id="radiosearchform">
+            <div class="searchrow">
+                <label for="searchname">Station:</label>
+                <input type="text" id="searchname" placeholder="Enter station name..." maxlength="100">
+            </div>
+            <div class="searchrow">
+                <label for="searchcountry">Country:</label>
+                <select id="searchcountry">
+                    <option value="">All countries...</option>
+                </select>
+            </div>
+            <div class="searchrow">
+                <label for="searchgenre">Genre:</label>
+                <input type="text" id="searchgenre" placeholder="Music genre..." maxlength="50">
+            </div>
+            <div class="formbuttons">
+                <div class="fb" onclick="searchRadioStations()">Search</div>
+                <div class="fb" onclick="clearSearch()">Clear</div>
+            </div>
+        </div>
+        <div id="radioplayer" class="hidden">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h3 style="margin: 0; color: var(--accent-color);">Radio Player</h3>
+                <div class="action-btn" onclick="closePlayer()" title="Close player" style="font-size: 16px;">×</div>
+            </div>
+            <audio controls id="radiopreview"></audio>
+            <div id="radioplayerinfo"></div>
+        </div>
+        <div id="radioresults" class="hidden">
+            <div id="radioresultscontent">
+            </div>
+            <div id="loadmorecontainer" class="hidden">
+                <div class="fb small" id="loadmore" onclick="loadMoreStations()">Load More</div>
+            </div>
+        </div>
+        <div id="copy" style="margin-top: 14px;">powered by <a target="_blank" href="https://github.com/VaraiTamas/VTomRadio.git">VTom Radio</a></div>
+    </div>
+    <div id="progress" class="hidden">
+        <div id="loader"></div>
+    </div>
+    <script>
+        const API_SERVERS=[
+            'https://fi1.api.radio-browser.info/json',
+            'https://de1.api.radio-browser.info/json',
+            'https://fr1.api.radio-browser.info/json',
+            'https://at1.api.radio-browser.info/json', 
+            'https://nl1.api.radio-browser.info/json'
+        ];
+        let currentAPIServer=0;
+        let allStations=[];
+        let displayedStations=0; 
+        let stationsPerPage=100; 
+        let lastSearchParams=null; 
+        let hostname=window.location.hostname;
+        const query=window.location.search;
+        const params=new URLSearchParams(query);
+        if(params.size>0){
+            if(params.has('host')) hostname=params.get('host');
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            fetch('logo.svg').then(response => response.text())
+                .then(svg => {
+                    document.getElementById('logo').innerHTML = svg;
+                })
+                .catch(() => {
+                });
+            checkHostConnection();
+            loadCountries();
+            const searchInputs = ['searchname', 'searchcountry', 'searchgenre'];
+            searchInputs.forEach(id => {
+                const input = document.getElementById(id);
+                    if (input) {
+                        input.addEventListener('keypress', function(e) {
+                            if (e.key === 'Enter') {
+                                searchRadioStations();
+                            }
+                        });
+                    }
+                });
+        });
+        async function fetchFromAPI(endpoint, options = {}) {
+            let lastError;
+            for (let i = 0; i < API_SERVERS.length; i++) {
+                const serverIndex = (currentAPIServer + i) % API_SERVERS.length;
+                const serverUrl = API_SERVERS[serverIndex];
+                try {
+                    const response = await fetch(`${serverUrl}${endpoint}`, {
+                        ...options,
+                        signal: AbortSignal.timeout(5000)
+                    });
+                    if (response.ok) {
+                        currentAPIServer = serverIndex;
+                        return response.json();
+                    }
+                } catch (error) {
+                    lastError = error;
+                    continue;
+                }
+            }
+            throw lastError || new Error('All API servers failed');
+        }
+        async function checkHostConnection() {
+            try {
+                const response = await fetch(`http://${hostname}/data/playlist.csv`, { 
+                    method: 'HEAD',
+                    cache: 'no-store'
+                });
+                if (!response.ok) {
+                }
+            } catch (error) {
+            }
+        }
+        async function loadCountries() {
+            try {
+                const countries = await fetchFromAPI('/countries');
+                populateCountrySelect(countries);
+            } catch (error) {
+                const countrySelect = document.getElementById('searchcountry');
+                countrySelect.innerHTML = '<option value="">API unavailable - cannot load countries</option>';
+                countrySelect.disabled = true;
+            }
+        }
+        function populateCountrySelect(countries) {
+            const countrySelect = document.getElementById('searchcountry');
+            if (countrySelect.options.length <= 1) {
+                countries.sort((a, b) => {
+                    const countA = a.stationcount || 0;
+                    const countB = b.stationcount || 0;
+                    return countB - countA;
+                });
+                countries.forEach(country => {
+                    if (country.name && country.iso_3166_1) {
+                        const option = document.createElement('option');
+                        option.value = country.iso_3166_1;
+                        const stationCount = country.stationcount || 0;
+                        option.textContent = `${country.name} (${stationCount})`;
+                        countrySelect.appendChild(option);
+                    }
+                });
+            }
+        }
+        function closePlayer() {
+            const playerDiv = document.getElementById('radioplayer');
+            const player = document.getElementById('radiopreview');
+            player.pause();
+            player.src = '';
+            playerDiv.classList.add('hidden');
+        }
+        function goBackToPlayer() {
+            window.location.href = window.location.origin + '/';
+        }
+        async function searchRadioStations() {
+            const name = document.getElementById('searchname').value.trim();
+            const country = document.getElementById('searchcountry').value.trim();
+            const genre = document.getElementById('searchgenre').value.trim();
+            if (!name && !country && !genre) {
+                alert('Please enter at least one search criteria');
+                return;
+            }
+            lastSearchParams = { name, country, genre };
+            showProgress(true);
+            try {
+                const result = await fetchStationsPage(name, country, genre, 0);
+                allStations = result.stations;
+                displayedStations = 0;
+                displayResults(result.stations, true);
+            } catch (error) {
+                alert('Error searching for radio stations. Please try again.');
+            } finally {
+                showProgress(false);
+            }
+        }
+        async function fetchStationsPage(name, country, genre, offset) {
+            let endpoint = '/stations/search?';
+            const params = [];
+            if (name) params.push(`name=${encodeURIComponent(name)}`);
+            if (country) params.push(`countrycode=${encodeURIComponent(country.toUpperCase())}`);
+            if (genre) params.push(`tag=${encodeURIComponent(genre)}`);
+            params.push(`limit=500`);
+            params.push(`offset=${offset}`);
+            params.push('hidebroken=true');
+            params.push('order=votes');
+            params.push('reverse=true');
+            endpoint += params.join('&');
+            const allStations = await fetchFromAPI(endpoint, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'User-Agent': 'yoRadio-SearchApp/1.0'
+                }
+            });
+            const filteredStations = allStations.filter(station => {
+                if (!station.url) return false;
+                const url = station.url.toLowerCase();
+                return !url.endsWith('.pls') && 
+                       !url.endsWith('.m3u') && 
+                       !url.endsWith('.m3u8') && 
+                       !url.includes('playlist');
+            });
+            return {
+                stations: filteredStations
+            };
+        }
+        function displayResults(stations, clearPrevious = false) {
+            const resultsDiv = document.getElementById('radioresults');
+            const contentDiv = document.getElementById('radioresultscontent');
+            const loadMoreContainer = document.getElementById('loadmorecontainer');
+            const loadMoreBtn = document.getElementById('loadmore');
+            if (clearPrevious) {
+                contentDiv.innerHTML = '';
+                displayedStations = 0;
+            }
+            if (stations.length === 0 && displayedStations === 0) {
+                contentDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--main-hl-color);">No stations found</div>';
+                loadMoreContainer.classList.add('hidden');
+                resultsDiv.classList.remove('hidden');
+                return;
+            }
+            const startIndex = clearPrevious ? 0 : displayedStations;
+            const endIndex = Math.min(startIndex + stationsPerPage, allStations.length);
+            for (let i = startIndex; i < endIndex; i++) {
+                const station = allStations[i];
+                const stationDiv = document.createElement('div');
+                stationDiv.className = 'radiostation';
+                const bitrate = station.bitrate > 0 ? `${station.bitrate}k` : 'Unknown';
+                const codec = station.codec || 'Unknown';
+                const country = station.countrycode || '??';
+                const flagUrl = country.length === 2 
+                    ? `https://flagcdn.com/24x18/${country.toLowerCase()}.png`
+                    : '';
+                stationDiv.innerHTML=`
+                    <span class="radioname" title="${escapeHtml(station.name)}">
+                        ${escapeHtml(truncateText(station.name,30))}
+                    </span>
+                    <span class="radiocountry">
+                        ${flagUrl ? `<img src="${flagUrl}" alt="${country}" style="height:18px;vertical-align:middle;border-radius:2px;">` : country}
+                    </span>
+                    <span class="radiocodec">${escapeHtml(codec)}</span>
+                    <span class="radiobitrate">${bitrate}</span>
+                    <span class="radioactions">
+                        <div class="action-btn" onclick="playStation(${i})" title="Odtwórz stację">🔊</div>
+                        <div class="action-btn" onclick="addToPlaylist(${i})" title="Dodaj do playlisty">📌</div>
+                    </span>
+                `;
+                contentDiv.appendChild(stationDiv);
+            }
+            displayedStations = endIndex;
+            const hasMoreInCurrentBatch = displayedStations < allStations.length;
+            const canLoadMoreFromAPI = allStations.length >= 500;
+            if (hasMoreInCurrentBatch || canLoadMoreFromAPI) {
+                loadMoreBtn.textContent = `Load More`;
+                loadMoreBtn.classList.remove('disabled');
+                loadMoreBtn.onclick = loadMoreStations;
+                loadMoreContainer.classList.remove('hidden');
+            } else {
+                alert('All available stations have been loaded');
+                loadMoreContainer.classList.add('hidden');
+            }
+            resultsDiv.classList.remove('hidden');
+        }
+        async function loadMoreStations() {
+            const hasMoreInCurrentBatch = displayedStations < allStations.length;
+            if (hasMoreInCurrentBatch) {
+                displayResults(allStations, false);
+            } else if (allStations.length >= 500 && lastSearchParams) {
+                try {
+                    showProgress(true);
+                    const result = await fetchStationsPage(
+                        lastSearchParams.name,
+                        lastSearchParams.country, 
+                        lastSearchParams.genre,
+                        allStations.length 
+                    );
+                    if (result.stations.length > 0) {
+                        allStations = allStations.concat(result.stations);
+                        displayResults(allStations, false);
+                    } else {
+                        alert('All available stations have been loaded');
+                        loadMoreContainer.classList.add('hidden');
+                    }
+                } catch (error) {
+                    alert('Error loading more stations. Please try again.');
+                } finally {
+                    showProgress(false);
+                }
+            } else {
+                alert('All available stations have been loaded');
+                loadMoreContainer.classList.add('hidden');
+            }
+        }
+        async function playStation(globalIndex) {
+            const station = getStationByGlobalIndex(globalIndex);
+            if (!station) return;
+            const player = document.getElementById('radiopreview');
+            const playerInfo = document.getElementById('radioplayerinfo');
+            const playerDiv = document.getElementById('radioplayer');
+            const countryCode = station.countrycode || '??';
+            const flagUrl = countryCode.length === 2 
+                ? `https://flagcdn.com/24x18/${countryCode.toLowerCase()}.png`
+                : '';
+            station.connectionChecked = false;
+            station.connectionWorks = false;
+            playerInfo.innerHTML=`
+                <strong>Now playing:</strong> ${escapeHtml(station.name)}<br>
+                <strong>Country:</strong> 
+                ${flagUrl ? `<img src="${flagUrl}" alt="${countryCode}" style="height:18px;vertical-align:middle;margin-right:4px;border-radius:2px;"> ${escapeHtml(station.country || 'Unknown')}` : escapeHtml(station.country || 'Unknown')}<br>
+                <strong>Codec:</strong> ${escapeHtml(station.codec || 'Unknown')}<br>
+                <strong>Bitrate:</strong> ${station.bitrate>0?station.bitrate+'k':'Unknown'}<br>
+                <strong>URL:</strong> <a href="${escapeHtml(station.url)}" target="_blank" style="word-break:break-all;">${escapeHtml(station.url)}</a>
+            `;
+            player.src = station.url;
+            playerDiv.classList.remove('hidden');
+            playerDiv.scrollIntoView({ behavior: 'smooth' });
+            try {
+                await player.play();
+                const currentStationId = Date.now();
+                station.checkId = currentStationId;
+                const longTimeoutId = setTimeout(() => {
+                    if (station.checkId === currentStationId && !station.connectionChecked) {
+                        if (globalIndex >= 0 && globalIndex < allStations.length) {
+                            allStations[globalIndex].connectionChecked = true;
+                            allStations[globalIndex].connectionWorks = false;
+                        }
+                        playerInfo.innerHTML=`
+                            <strong>Now playing:</strong> ${escapeHtml(station.name)}<br>
+                            <strong>Country:</strong> 
+                            ${flagUrl ? `<img src="${flagUrl}" alt="${countryCode}" style="height:18px;vertical-align:middle;margin-right:4px;border-radius:2px;"> ${escapeHtml(station.country || 'Unknown')}` : escapeHtml(station.country || 'Unknown')}<br>
+                            <strong>Codec:</strong> ${escapeHtml(station.codec || 'Unknown')}<br>
+                            <strong>Bitrate:</strong> ${station.bitrate>0?station.bitrate+'k':'Unknown'}<br>
+                            <strong>URL:</strong> <a href="${escapeHtml(station.url)}" target="_blank" style="word-break:break-all;">${escapeHtml(station.url)}</a>
+                        `;
+                    }
+                }, 12000);
+                try {
+                    const checkPromise = checkStationUrl(station.url);
+                    const timeoutPromise = new Promise((resolve) => {
+                        setTimeout(() => resolve(false), 5000);
+                    });
+                    const works = await Promise.race([checkPromise, timeoutPromise]);
+                    clearTimeout(longTimeoutId);
+                    if (globalIndex >= 0 && globalIndex < allStations.length) {
+                        allStations[globalIndex].connectionChecked = true;
+                        allStations[globalIndex].connectionWorks = works;
+                    }
+                    playerInfo.innerHTML=`
+                        <strong>Now playing:</strong> ${escapeHtml(station.name)}<br>
+                        <strong>Country:</strong> 
+                        ${flagUrl ? `<img src="${flagUrl}" alt="${countryCode}" style="height:18px;vertical-align:middle;margin-right:4px;border-radius:2px;"> ${escapeHtml(station.country || 'Unknown')}` : escapeHtml(station.country || 'Unknown')}<br>
+                        <strong>Codec:</strong> ${escapeHtml(station.codec || 'Unknown')}<br>
+                        <strong>Bitrate:</strong> ${station.bitrate>0?station.bitrate+'k':'Unknown'}<br>
+                        <strong>URL:</strong> <a href="${escapeHtml(station.url)}" target="_blank" style="word-break:break-all;">${escapeHtml(station.url)}</a>
+                    `;
+                } catch (err) {
+                    clearTimeout(longTimeoutId);
+                    if (globalIndex >= 0 && globalIndex < allStations.length) {
+                        allStations[globalIndex].connectionChecked = true;
+                        allStations[globalIndex].connectionWorks = false;
+                    }
+                    playerInfo.innerHTML=`
+                        <strong>Now playing:</strong> ${escapeHtml(station.name)}<br>
+                        <strong>Country:</strong> 
+                        ${flagUrl ? `<img src="${flagUrl}" alt="${countryCode}" style="height:18px;vertical-align:middle;margin-right:4px;border-radius:2px;"> ${escapeHtml(station.country || 'Unknown')}` : escapeHtml(station.country || 'Unknown')}<br>
+                        <strong>Codec:</strong> ${escapeHtml(station.codec || 'Unknown')}<br>
+                        <strong>Bitrate:</strong> ${station.bitrate>0?station.bitrate+'k':'Unknown'}<br>
+                        <strong>URL:</strong> <a href="${escapeHtml(station.url)}" target="_blank" style="word-break:break-all;">${escapeHtml(station.url)}</a>
+                    `;
+                }
+            } catch (error) {
+            }
+        }
+        function getStationByGlobalIndex(globalIndex) {
+            if (globalIndex >= 0 && globalIndex < allStations.length) {
+                return allStations[globalIndex];
+            }
+            return null;
+        }
+        async function addToPlaylist(globalIndex) {
+            const station = getStationByGlobalIndex(globalIndex);
+            if (!station) return;
+            try {
+                showProgress(true);
+                let playlistUrl = `http://${hostname}/data/playlist.csv`;
+                let existingPlaylist = '';
+                try {
+                    const playlistResponse = await fetch(playlistUrl + "?nocache=" + new Date().getTime());
+                    if (playlistResponse.ok) {
+                        existingPlaylist = await playlistResponse.text();
+                    }
+                } catch (e) {
+                }
+                const lines = existingPlaylist.trim() ? existingPlaylist.trim().split('\n') : [];
+                const stationCount = lines.length + 1;
+                const genre = (station.tags && station.tags.trim()) ? station.tags.split(',')[0].trim() : '';
+                const newStation = `${station.name.replace(/\t/g, ' ')}\t${station.url}\t0\t${genre.replace(/\t/g, ' ')}`;
+                const fullPlaylist = existingPlaylist.trim() ? 
+                    existingPlaylist.trim() + '\n' + newStation : 
+                    newStation;
+                const formData = new FormData();
+                const blob = new Blob([fullPlaylist], { type: 'text/csv' });
+                formData.append('plfile', blob, 'playlist.csv');
+                const uploadResponse = await fetch(`http://${hostname}/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                if (!uploadResponse.ok) {
+                    throw new Error(`Failed to upload playlist`);
+                }
+                alert(`Station "${station.name}" added to playlist at position ${stationCount}`);
+            } catch (error) {
+                alert('Error adding station to playlist. Please try again.');
+            } finally {
+                showProgress(false);
+            }
+        }
+        function clearSearch() {
+            document.getElementById('searchname').value = '';
+            document.getElementById('searchcountry').selectedIndex = 0;
+            document.getElementById('searchgenre').value = '';
+            document.getElementById('radioresults').classList.add('hidden');
+            document.getElementById('radioplayer').classList.add('hidden');
+            document.getElementById('loadmorecontainer').classList.add('hidden');
+            allStations = [];
+            displayedStations = 0;
+            lastSearchParams = null;
+        }
+        function showProgress(show) {
+            const progressDiv = document.getElementById('progress');
+            if (show) {
+                progressDiv.classList.remove('hidden');
+            } else {
+                progressDiv.classList.add('hidden');
+            }
+        }
+        async function checkStationUrl(url) {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+                const response = await fetch(url, { 
+                    method: 'HEAD',
+                    mode: 'no-cors',
+                    cache: 'no-store',
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+        function truncateText(text, maxLength) {
+            if (!text) return '';
+            return text.length > maxLength ? text.substr(0, maxLength) + '...' : text;
+        }
+        let checkWebsocket = new WebSocket(`ws://${hostname}/ws`);
+        let checkTimeout = setTimeout(() => {
+            document.body.classList.add('content-loaded');
+        }, 3000);
+        checkWebsocket.onopen = () => {
+            checkWebsocket.send('getindex=1');
+        };
+        checkWebsocket.onmessage = (event) => {
+            clearTimeout(checkTimeout);
+            try {
+                const data = JSON.parse(event.data);
+                if (data.playermode !== undefined) {
+                    if (data.playermode === 'modesd') {
+                        history.replaceState(null, '', '/');
+                        window.location.replace('/');
+                    } else {
+                        document.body.classList.add('content-loaded');
+                    }
+                }
+            } catch (e) {
+            }
+        };
+        window.addEventListener('popstate', function(event) {
+            if (checkWebsocket.readyState === WebSocket.OPEN) {
+                checkWebsocket.send('getindex=1');
+            }
+        });
+    </script>
+</body>
+</html>

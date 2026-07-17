@@ -17,6 +17,7 @@ Főbb változtatások:
 - [Telepítési tanácsok](#telepitesi-tanacsok)
 - [Nyelvek, területi beállítások](#nyelvek-teruleti-beallitasok)
 - [Névnapok megjelenítése](#nevnapok-megjelenitese)
+- [Hangerőgörbe (Volume Curve) beállítása](#hangerogorbe-volume-curve-beallitasa)
 - [PCB nyomtatott áramkör](#pcb-nyomtatott-aramkor)
 - [3D nyomtatási tervek](#3d-nyomtatasi-tervek)
 - [Version history](#version-history)
@@ -26,19 +27,23 @@ Főbb változtatások:
 !!! Figyelem !!!
 Ez a verzió kizárólag az ESP32-S3-devkit-C1 N16R8, 44 lábú modulhoz és
 - ILI9488 480x320 felbontású SPI (LCD) 
+- ILI9341 320x240 felbontású SPI (LCD)
 - ST7796 480x320 felbontású SPI (LCD)   
+
 kijelzőhöz készült és csak az audioI2S DAC eszközzel működik megfelelően, [PCM5102A](PCM5102A) -val tesztelve!
 - A program működéséhez 16MB flash memória és 8MB PSRAM szükséges!
 - Arduino Core 3.3.7 használatával tesztelve. Arduino Core 3.3.8 verzióval nem működik megfelelően !!!   
 
-A programhoz ajánlott a Visual Studio Code szerkesztő használata a PlatformIO plugin-nal, de az Arduino IDE-vel is működik. 
-
-PlatformIO esetén a mellékelt platformio.ini fájlban meg vannak adva a szükséges könyvtárak és beállítások, így csak az alábbi parancsokat kell kiadni. 
+- A programhoz ajánlott a Visual Studio Code szerkesztő használata a PlatformIO plugin-nal, de az Arduino IDE-vel is működik.   
+- A Visual Studio Code szerkesztő letölthető innen: https://code.visualstudio.com/    
+- Telepítés után a bal oldali menüben EXTENSIONS gombra kattintva a keresőbe írd be: PlatformIO IDE és telepítsd. 
+- A projektet a VTomRadio/VTomRadio/VTomRadio.code-workspace fájl megnyitásával tudod elindítani.  
+- A program automatikusan letölti a szükséges könyvtárakat, de ha valamiért nem sikerülne, akkor a platformio.ini fájlban megadott könyvtárakat manuálisan is telepítheted.
 - Első telepítés előtt célszerű a teljes flash memória törlése az előző verziók maradványainak eltávolítása érdekében!
 ```
 pio run --target erase
 ```
-- Ezután a következő parancsot kell kiadni a kód feltöltéséhez. A parancs automatikusan létrehozza a szükséges particiókat a gyökérkönyvtárban elhelyezett partitions.csv fájl alapján a 16 MB-os flash memória méretéhez igazítva és feltölti a firmware-t.
+- Ezután a következő parancsot kell kiadni a kód feltöltéséhez. A program egyedi partíciós táblát használ. A parancs automatikusan létrehozza a szükséges particiókat a gyökérkönyvtárban elhelyezett partitions.csv fájl alapján a 16 MB-os flash memória méretéhez igazítva és feltölti a firmware-t.
 ```
 pio run --target upload
 ```
@@ -48,7 +53,7 @@ pio run --target uploadfs
 ```
 - Ezek a fájlok könyvtárankén elkülönítve itt találhatóak, ezekkel teendő nincs.
 ```
-        VTomRadio/data/data     Lejátszási lista, jelszó
+        VTomRadio/data/data     Lejátszási lista, jelszó, téma, beállítások, stb.
         VTomRadio/data/www      WEB UI fájlok
         VTomRadio/data/fonts    Betűtípusok
         VTomRadio/data/images   Képek   
@@ -67,7 +72,7 @@ pio run --target uploadfs
 
 Aprogram beépített nyelveket és területi beállításokat tartalmaz HU, PL, GR, EN, RU, NL, SK, UA, DE nyelveken.   
 A myoptions.h fájlban az alábbi paranccsal állíthatod be.   
-```
+```cpp
 #define LANGUAGE HU
 ```
 
@@ -81,9 +86,9 @@ Az ESP modulról itt olvasható:
 esp32-S3-devkit-C1 44 pins https://randomnerdtutorials.com/esp32-s3-devkitc-pinout-guide 
 
 ## Nevnapok megjelenitese:
-A program képes megjeleníteni a HU, PL, GR, DE nyelvű névnapokat.
+A program képes megjeleníteni a HU, PL, NL, GR, DE nyelvű névnapokat.
 - A myoptions.h fájlban az alábbi paranccsal állíthatod be a megjelenítendő névnapokat.   
-```
+```cpp
 #define NAMEDAYS_FILE HU   
 ```
 A névnapok tárolása az alábbi fájlokban történik.
@@ -97,22 +102,52 @@ A névnapok tárolása az alábbi fájlokban történik.
 
 Ha más nyelven szeretnéd használni vedd fel velem a kapcsolatot.
 
-A névnapok megjelenítése a WEB-es felületen kikapcsolható options/ SYSTEM-> Nameday gombbal.
+A névnapok megjelenítése a WEB-es felületen kikapcsolható options/ SYSTEM-> Nameday gombbal. 
 
-## PCB - nyomtatott aramkor:
+## Hangerogorbe (Volume Curve) beallitasa 
+A program lehetőséget biztosít a hangerő 0 - 21 értékeinek személyreszabására a VOLUME CURVE funkcióval, amely lehetővé teszi minden hangerő állás személyreszabását -60 - 0 dB értékek között. A VOLUME CURVE beállítása a WEB UI-ban a hangszínszabályzó lenyitásánál a VOLUME CURVE... gombbal indítható.
+Bővebben a hangerőgörbe működéséről a következő oldalon olvashatsz: [Hangerőgörbe (volume curve) működése](Doc/volcurve.md)
 
+## PCB nyomtatott aramkor:
+- A PCB nyomtatott áramkör a VTom Radio projekthez készült. Az összeállításhoz szükséges leírásokat, kapcsolási rajzot, alkatrészlistát és a nyomtatott áramkör tervrajzát a PCB/PCB_2026_05_25 mappában találod. A 2026.06.21 verzió leírása is itt található.   
+Itt olvashatsz róla bővebben: [PCB_2026_05_25](PCB/PCB_2026_05_25/readme.md)
 
-## 3D nyomtatasi tervek és a hozzájuk illeszkedő kijelzők
+## 3D nyomtatasi tervek
 - IPS 4.0 Inch, SPI, ILI9488 Factory TFT LCD 480*320, 14 Pin Electronic Board  
 (SPI resistive touch XPT2046) https://www.aliexpress.com/item/1005006287831546.html
    - 3D nyomtatási terv --> https://www.printables.com/model/1489380-yoradio-case-for-ips-40-inch-ili9488-tft-lcd-48032
-- IPS 3.5 Inch, SPI, ILI9488 14 pin Full View Angle 480*320 
-(I2C capacitive touch FT6236) https://www.aliexpress.com/item/1005007789737257.html    
-   - 3D nyomtatási terv --> https://www.printables.com/model/1621877-yoradio-case-for-ips-ctp-35-inch-spi-red-ili9488-f
+- IPS 3.5 Inch, SPI 14 pin Full View Angle 480*320 displays
+   - ILI9488 480x320 felbontású SPI LCD (SPI resistive touch XPT2046) https://www.aliexpress.com/item/1005007789737257.html 
+   - ST7796 480x320 felbontású SPI LCD (I2C capacitive touch FT6336) https://www.aliexpress.com/item/1005005995931721.html 
+   - 3D nyomtatási terv --> https://www.printables.com/model/1621877-yoradio-case-for-ips-35-inch-spi-480320-capacitive
 
 ## Version history: 
 ### Ha támogatni szeretnéd a munkámat itt meghívhatsz egy kávéra!!!     
-https://buymeacoffee.com/vtom
+<a href="https://buymeacoffee.com/vtom">
+    <img src="images/buymeacoffee.png" width="200">
+</a>  
+
+## v0.1.8
+- I2S audio könyvtár frissítése V3.4.7g-re. https://github.com/schreibfaul1/ESP32-audioI2S
+- A VOLUME CURVE beállításánál a hangerő 0 - 21 értékeihez tartozó dB értékek összehangolása az audioI2S könyvtárral.   
+ Leírás a következő oldalon olvasható: [Hangerőgörbe (volume curve) működése](Doc/volcurve.md)  
+
+
+## v0.1.7
+- Az ébresztés funkció módosítása az ESP32 WROVER modulhoz.    
+   ESP32 WROVER modulnál csak egy ébresztési pin állítható be. Például:
+   ```cpp
+   #define WAKE_PIN1 ENC_BTNB
+   ```   
+
+   ESP32-S3 modulnál két ébresztési pin állítható be. Például:
+   ```cpp
+   #define WAKE_PIN1 IR_PIN
+   #define WAKE_PIN2 ENC_BTNB
+   ```
+## v0.1.6   
+- A POWER LED bekapcsolás idejének változtatása.      
+    [A PCB verzio: 206.06.21 együttműködéséhez.](PCB/PCB_2026_06_21/readme.md)
 ## v0.1.5
 - ILI9341 kijelző támogatás hozzáadása. Ez a kijelző 320x240 felbontású, így a megjelenítés kissé módosult, de a program többi része változatlan maradt. (by Scott Barber)
 ### v0.1.4
@@ -122,7 +157,7 @@ Teljes FLASH memória törlése és a data/ mappa feltöltése szükséges!!
 - Az óra megjelenítésénén egy számjegy esetén ne jelenjen meg előtte a nulla javítás és a másodperc középreigazítása minden fontnál.
 ### v0.1.2
 - SD kártya módban a képernyő fagyás hibájának javítása. Mostantól a myoptions.h fájlban az SD modot így kell beállítani.
-```
+```cpp
 /*----- SD CARD -----*/
  #define SDC_CS     18
  #define SD_SPIPINS 12, 13, 11, SDC_CS  // SCK, MISO, MOSI, CS
@@ -177,4 +212,6 @@ Teljes FLASH memória törlése és a data/ mappa feltöltése szükséges!!
 
 
 ### Ha támogatni szeretnéd a munkámat itt meghívhatsz egy kávéra!!!     
-https://buymeacoffee.com/vtom
+<a href="https://buymeacoffee.com/vtom">
+    <img src="images/buymeacoffee.png" width="200">
+</a>

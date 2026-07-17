@@ -88,9 +88,7 @@ void parseVersionTriplet(const char* ver, uint8_t& a, uint8_t& b, uint8_t& c) {
     c = clampChannel(strtol(tok, nullptr, 10));
 }
 
-constexpr int8_t kDefaultVolumeCurveDb[21] = {
-    -52, -39, -32, -27, -24, -20, -18, -15, -13, -12, -10,
-    -9, -8, -6, -5, -4, -4, -3, -2, -2, -1};
+constexpr int8_t kDefaultVolumeCurveDb[21] = {-32, -28, -24, -20, -18, -16, -14, -13, -12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, -0};
 
 bool isVolumeCurveInvalid(const config_t& s) {
     bool allMinusOne = true;
@@ -113,9 +111,8 @@ void u8fix(char* src) { // Ha az utolsó tőbbájtos karakter (ékezetes) utols�
 
 bool Config::_isFSempty() {
     // Base names without .gz — accepts both compressed and plain uploads
-    const char*   reqiredFiles[] = {"dragpl.js",   "ir.css",    "irrecord.html", "ir.js",        "logo.svg",      "options.html",
-                                    "player.html", "script.js", "style.css",     "updform.html", "theme.css",     "theme-editor.html",
-                                    "volcurve.html"};
+    const char*   reqiredFiles[] = {"dragpl.js", "ir.css",    "irrecord.html", "ir.js",     "logo.svg",          "options.html", "player.html",
+                                    "script.js", "style.css", "updform.html",  "theme.css", "theme-editor.html", "volcurve.html"};
     const uint8_t reqiredFilesSize = 13;
     char          fullpath[32];
     if (LittleFS.exists("/www/settings.html")) { LittleFS.remove("/www/settings.html"); }
@@ -222,9 +219,7 @@ void Config::init() {
     if (store.dateFormat > 4) { saveValue(&store.dateFormat, static_cast<uint8_t>(0)); }
     if (isVolumeCurveInvalid(store)) {
         setDefaultVolumeCurve();
-        for (size_t i = 0; i < 21; ++i) {
-            saveValue(&store.volumeCurveDb[i], store.volumeCurveDb[i], false, true);
-        }
+        for (size_t i = 0; i < 21; ++i) { saveValue(&store.volumeCurveDb[i], store.volumeCurveDb[i], false, true); }
         EEPROM.commit();
     }
     BOOTLOG("CONFIG_VERSION\t%d", store.version);
@@ -244,9 +239,7 @@ void Config::init() {
 
         LittleFS.format();
 
-        if (!LittleFS.begin()) {
-            Serial.println("##[FATAL]# LittleFS still failed!");
-        }
+        if (!LittleFS.begin()) { Serial.println("##[FATAL]# LittleFS still failed!"); }
     }
     BOOTLOG("LittleFS mounted");
     bool themeLoaded = loadThemeFromFile();
@@ -284,11 +277,6 @@ void Config::init() {
 
 #ifdef USE_DLNA
     isBooting = false;
-#endif
-
-#if PWR_AMP != 255 // "PWR_AMP"
-    pinMode(PWR_AMP, OUTPUT);
-    digitalWrite(PWR_AMP, HIGH);
 #endif
 }
 
@@ -1067,9 +1055,7 @@ String Config::themeToJson() const {
 }
 
 void Config::setDefaultVolumeCurve() {
-    for (size_t i = 0; i < 21; ++i) {
-        store.volumeCurveDb[i] = kDefaultVolumeCurveDb[i];
-    }
+    for (size_t i = 0; i < 21; ++i) { store.volumeCurveDb[i] = kDefaultVolumeCurveDb[i]; }
 }
 
 String Config::volumeCurveToCsv() const {
@@ -1122,7 +1108,7 @@ bool Config::applyVolumeCurveCsv(const char* csvData, String* errorOut) {
 
         line.replace(";", ",");
 
-        int step = 0;
+        int   step = 0;
         float db = 0.0f;
         if (sscanf(line.c_str(), " %d , %f", &step, &db) != 2) {
             if (line.startsWith("step") || line.startsWith("Step")) { continue; }
@@ -1156,16 +1142,12 @@ bool Config::applyVolumeCurveCsv(const char* csvData, String* errorOut) {
         return false;
     }
 
-    for (int i = 0; i < 21; ++i) {
-        saveValue(&store.volumeCurveDb[i], parsed[i], false, true);
-    }
+    for (int i = 0; i < 21; ++i) { saveValue(&store.volumeCurveDb[i], parsed[i], false, true); }
     EEPROM.commit();
 
     float lut[22];
     lut[0] = -60.0f;
-    for (int i = 1; i <= 21; ++i) {
-        lut[i] = (float)store.volumeCurveDb[i - 1];
-    }
+    for (int i = 1; i <= 21; ++i) { lut[i] = (float)store.volumeCurveDb[i - 1]; }
     player.setVolumeCurveDbLut(lut, 22);
     netserver.requestOnChange(GETVOLCURVE, 0);
     return true;
@@ -1185,15 +1167,11 @@ bool Config::loadVolumeCurveFromFile(const char* path) {
     file.close();
 
     String importError;
-    if (applyVolumeCurveCsv(csv.c_str(), &importError)) {
-        return true;
-    }
+    if (applyVolumeCurveCsv(csv.c_str(), &importError)) { return true; }
 
     Serial.printf("[VOLCURVE] Invalid curve file: %s\n", importError.c_str());
     setDefaultVolumeCurve();
-    for (size_t i = 0; i < 21; ++i) {
-        saveValue(&store.volumeCurveDb[i], store.volumeCurveDb[i], false, true);
-    }
+    for (size_t i = 0; i < 21; ++i) { saveValue(&store.volumeCurveDb[i], store.volumeCurveDb[i], false, true); }
     EEPROM.commit();
     saveVolumeCurveToFile(path);
     return false;
@@ -1461,9 +1439,7 @@ void Config::setDefaults() {
     store.stationsListReturnTime = 3;
     store.stallWatchdog = true;
     store.serialLittlefsEnabled = true;
-    for (size_t i = 0; i < 21; ++i) {
-        store.volumeCurveDb[i] = kDefaultVolumeCurveDb[i];
-    }
+    for (size_t i = 0; i < 21; ++i) { store.volumeCurveDb[i] = kDefaultVolumeCurveDb[i]; }
 #if TS_MODEL == TS_MODEL_FT6X36
     store.xTouchMirroring = false;
     store.yTouchMirroring = false;
@@ -1964,7 +1940,9 @@ void Config::doSleep() {
 #ifdef USE_NEXTION
     nextion.sleep();
 #endif
+
     uint64_t mask = 0;
+
 #if WAKE_PIN1 >= 0 && WAKE_PIN1 < 64
     if (rtc_gpio_is_valid_gpio((gpio_num_t)WAKE_PIN1)) {
         rtc_gpio_pullup_en((gpio_num_t)WAKE_PIN1);
@@ -1972,30 +1950,35 @@ void Config::doSleep() {
         mask |= (1ULL << WAKE_PIN1);
     }
 #endif
-#if WAKE_PIN2 >= 0 && WAKE_PIN2 < 64
+
+// CSAK akkor engedjük a WAKE_PIN2-t, ha ESP32-S3-on vagyunk, mert ott van ANY_LOW!
+#if WAKE_PIN2 >= 0 && WAKE_PIN2 < 64 && defined(CONFIG_IDF_TARGET_ESP32S3)
     if (rtc_gpio_is_valid_gpio((gpio_num_t)WAKE_PIN2)) {
         rtc_gpio_pullup_en((gpio_num_t)WAKE_PIN2);
         rtc_gpio_pulldown_dis((gpio_num_t)WAKE_PIN2);
         mask |= (1ULL << WAKE_PIN2);
     }
 #endif
-    if (mask != 0) { esp_sleep_enable_ext1_wakeup(mask, ESP_EXT1_WAKEUP_ANY_LOW); }
+
+    if (mask != 0) { esp_sleep_enable_ext1_wakeup(mask, EXT1_MODE); }
     esp_sleep_enable_timer_wakeup(config.sleepfor * 60ULL * 1000000ULL);
     esp_deep_sleep_start();
 }
 
 void Config::doSleepW() {
-    analogWrite(BRIGHTNESS_PIN, 0);           // ← add (MB)
-    pinMode(BRIGHTNESS_PIN, OUTPUT);          // ← add (MB)
-    digitalWrite(BRIGHTNESS_PIN, LOW);        // ← add (MB)
-    gpio_hold_en((gpio_num_t)BRIGHTNESS_PIN); // ← add (MB)
-    gpio_deep_sleep_hold_en();                // ← add (MB)
+    analogWrite(BRIGHTNESS_PIN, 0);           
+    pinMode(BRIGHTNESS_PIN, OUTPUT);          
+    digitalWrite(BRIGHTNESS_PIN, LOW);        
+    gpio_hold_en((gpio_num_t)BRIGHTNESS_PIN); 
+    gpio_deep_sleep_hold_en();                
     display.deepsleep();
-    
+
 #ifdef USE_NEXTION
-        nextion.sleep();
+    nextion.sleep();
 #endif
+
     uint64_t mask = 0;
+
 #if WAKE_PIN1 >= 0 && WAKE_PIN1 < 64
     if (rtc_gpio_is_valid_gpio((gpio_num_t)WAKE_PIN1)) {
         rtc_gpio_pullup_en((gpio_num_t)WAKE_PIN1);
@@ -2003,18 +1986,20 @@ void Config::doSleepW() {
         mask |= (1ULL << WAKE_PIN1);
     }
 #endif
-#if WAKE_PIN2 >= 0 && WAKE_PIN2 < 64
+
+// Ugyanaz a védelem ide is az S3 chiphez:
+#if WAKE_PIN2 >= 0 && WAKE_PIN2 < 64 && defined(CONFIG_IDF_TARGET_ESP32S3)
     if (rtc_gpio_is_valid_gpio((gpio_num_t)WAKE_PIN2)) {
         rtc_gpio_pullup_en((gpio_num_t)WAKE_PIN2);
         rtc_gpio_pulldown_dis((gpio_num_t)WAKE_PIN2);
         mask |= (1ULL << WAKE_PIN2);
     }
 #endif
+
     delay(200);
-    if (mask != 0) { esp_sleep_enable_ext1_wakeup(mask, ESP_EXT1_WAKEUP_ANY_LOW); }
+    if (mask != 0) { esp_sleep_enable_ext1_wakeup(mask, EXT1_MODE); }
     esp_deep_sleep_start();
 }
-
 void Config::sleepForAfter(uint16_t sf, uint16_t sa) {
     sleepfor = sf;
     if (sa > 0) {

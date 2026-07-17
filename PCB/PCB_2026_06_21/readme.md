@@ -1,4 +1,4 @@
-# PCB verzió 2026.05.25 
+# PCB verzió 2026.06.21 
 ## verzió: 2026.06.15 -től
 - Az SMD ellenállások mérete 1206 egységesen.
 - Az előző verzióhoz képest a DS3231 óramodul csatlakozójának 3,3V-os táp kimenetén 5 Volt táp van amit a POWER_LED és a DAC áramkör táplál. Így alvó üzemmódban ez az eszköz is lekapcsol. Lejjebb olvashatsz róla. A 3,3V elírás! A DS3231 erre fel van készítve.   
@@ -7,7 +7,7 @@
 ## -- Ismeretető --
 
 - **PCB mérete:** 98 × 100 mm
-- Kapcsolási rajz PDF formátumban letölthető: [schematics_2026.05.25.pdf](../../PCB/PCB_2026_05_25/schematics_2026.05.25.pdf)  
+- Kapcsolási rajz PDF formátumban letölthető: [pcb_wiring_diagram_2026_06_21.pdf](../../PCB/PCB_2026_06_21/pcb_wiring_diagram_2026_06_21.pdf)  
 - **R1-R2** az I2C busz SCL és SCA felhúzóellenállásai. 4.7kΩ (Capacitive touch és RTC modul DS3231 használja.)   
 - **R3** az I2C TOUCH -> INT GPIO 17 felhúzóellenállása. 4.7kΩ
 - **R4** az I2C TOUCH -> RST GPIO 1 felhúzóellenállása. 4.7kΩ   
@@ -171,8 +171,8 @@ Az infravörös led tápjára párhuzamosan kell kötni egy 10μF elektrolit és
 <br><br>
 
 
-![PCB front](2D_pcb_top_98x100mm.jpg)<br><br>
-![PCB back](2D_pcb_bottom_98x100mm.jpg)<br><br>
+![PCB front](pcb_top.png)<br><br>
+![PCB back](pcb_bottom.png)<br><br>
 
 ## Alkatrészek:
 | Alkatrész neve    | Érték | Típus    |
@@ -181,9 +181,9 @@ Az infravörös led tápjára párhuzamosan kell kötni egy 10μF elektrolit és
 | R5 - R6           | 1k    | SMD 1206 |
 | R7 - R13          | 10k   | SMD 1206 |
 | R14 - R15         | 4,7k  | SMD 1206 |
-| R16               | 330   | SMD 0805 |
-| R17               | 47k   | SMD 0805 |
-| R18               | 680   | SMD 0805 |
+| R16               | 330   | SMD 1206 |
+| R17               | 47k   | SMD 1206 |
+| R18               | 680   | SMD 1206 |
 | C1                | 220uF/10V | 2,54 |
 | C2                | Kondenzátor 100nF 100V 10% Polipropilén RM-5 | 2,54 |
 | C3                | 10uF/10V | 2,54 |

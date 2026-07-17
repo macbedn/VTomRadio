@@ -1,0 +1,104 @@
+# Hozzávalók / accessories
+## ESP32 S3 N16R8
+- ESP32 S3 Development Board 2.4G Wifi Bluetooth Module Dual-Core Processor ESP32-S3 N16R8 44Pin Type-C ESP32-S3
+https://www.aliexpress.com/item/1005008682657771.html
+
+## WiFi Antenna
+- 2.4GHz 3dBi WiFi 2.4g Antenna Aerial RP-SMA Male wireless router+ 17cm PCI U.FL IPX to RP SMA Male Pigtail Cable ESP8266 ESP32
+https://www.aliexpress.com/item/1005006781542881.html
+
+## Kijelzők / Displays
+- IPS 4.0 Inch Red Module ILI9488 Factory TFT LCD 480*320 DIY Display 14 Pin Electronic Board   
+(SPI resistive touch XPT2046)   
+https://www.aliexpress.com/item/1005006287831546.html
+
+- IPS CTP 3.5 Inch SPI Red ILI9488 14 pin Full View Angle 480*320   
+(I2C capacitive touch FT6236)   
+https://www.aliexpress.com/item/1005007789737257.html 
+
+- 3.5 Inch IPS LCD Display Module 480x320 Capacitive Touch Screen ST7796 TFT SPI LCD Module     
+(I2C capacitive touch FT6236)     
+https://www.aliexpress.com/item/1005008145696005.html
+
+## Digital/Analog Converter (DAC)
+
+- Interface I2S PCM5102A DAC Decoder GY-PCM5102 I2S Player Module For Raspberry Pi pHAT Format Board Digital PCM5102 Audio Board
+https://www.aliexpress.com/item/1005006104038963.html
+
+## Kapcsolók / Switches
+- 16mm- es nyomó kapcsoló (ON - OFF) 110 - 220V (LED 3.3V), világító jelzőfénnyel / 16mm Push Button Switch (ON - OFF) 110 - 220V (LED 3.3V), with indicator light  
+https://www.aliexpress.com/item/1005009195056493.html
+
+
+## Forgás jeladó / Rotary Encoder
+- EC11 Rotary Encoder Module with Knob Cap, 5V Push Button Switch for Arduino KY-040, 360° Rotation Sensor Development Board
+https://www.aliexpress.com/item/1005009722549311.html
+
+## Infra vevő szenzor / IR sensor
+- VS1838B IR sensor     
+https://www.aliexpress.com/item/1005005407437987.html
+
+## DS3231 RTC modul / DS3231 RTC module (optional)
+- DS3231 RTC Module I2C Real Time Clock Module with Battery Backup  
+https://www.aliexpress.com/item/1005009130739084.html   
+
+## Csatlakozók / Connectors
+- 4PCS RCA Female Socket Lotus Connector Chassis Panel Mount Adapter Audio Terminal Plug 3.5mm AV Plug Gold Plated
+https://www.aliexpress.com/item/1005008621695365.html
+
+- 10PCS Single Row Pin Female Header Socket Pitch 2.54mm 22p Pin Connector  
+https://www.aliexpress.com/item/4001198421663.html
+
+- 230 PCS 2/3/4/5p 2.54mm Male and Female Pin Terminal Kit Housing Pin Header JST XH-2.54 4Value Connectors Adaptor 
+https://www.aliexpress.com/item/1005009454589816.html 
+
+- 2 Pin USB 2.0 Female Power Charging Port Connector    
+https://www.aliexpress.com/item/1005005967878696.html
+
+- PJ-392A 3/4 Pin 3.5mm Audio Jack Socket 3/4 Pole Stereo Solder Panel Mount 3.5 mm Headphone Female Socket Connector With Nut
+https://www.aliexpress.com/item/1005003621329893.html
+
+## Távirányítók / Remote controls
+- Universal Remote Control Replacement For Original Tanix W2 TX3 TX5 TX6 TX6S TX9 TX68 TV BOX Controller Accessories    
+https://www.aliexpress.com/item/1005010439257796.html   
+
+## Tápegységek / Power supplies
+- 5 Volt AC-DC Precision Buck Converter AC 220v to DC 5V 2A   
+https://www.aliexpress.com/item/1005002905706297.html
+
+## Dobozolás    
+- 4PCS Audio Isolation Feet 40*10mm Plastic Amplifier Feet Speaker Pad CD DAC Speakers Shock Absorption Feet Pad
+https://www.aliexpress.com/item/1005007017368257.html
+
+- 5x20 MM Automobile Fuse Holder Socket Insurance Tube Socket 10A 250V AC 15A 125V AC For 5*20mm Panel
+https://www.aliexpress.com/item/1005004872430120.html
+
+- 25 x 13mm Black aluminum knob encoder sound card potentiometer inner hole 6mm knob volume power amplifier adjustment metal cap
+https://www.aliexpress.com/item/1005008473117765.html
+
+- 48 x 15 mm-es 4Pcs Speaker Spikes Stand Feets Audio Active Speakers Repair Parts Accessories DIY For Home Theater Sound System
+https://www.aliexpress.com/item/1005006345065523.html
+
+
+## USB Bluetooth Transmiter
+- KN330 3 in 1 Bluetooth 5.0 Transmitter Receiver USB EDR Adapter Dongle 3.5mm AUX RCA for TV PC Headphones Home Stereo Car HIFI  
+https://www.aliexpress.com/item/1005009252961710.html
+
+## Optocoupler Isolation Relay Module Board (optional)
+- 3.3V 1 Channel Relay Module High And Low Level Trigger Dual Optocoupler Isolation Relay Module Board
+https://www.aliexpress.com/item/1005005514531757.html
+
+## Vezetékek / Wires    
+- UL1007 Wire PVC Insulation Tinned Copper Cable Stranded Electrical Line 22 AWG PVC Wire（5 Colors Mix Kit）
+https://www.aliexpress.com/item/1005007813766293.html
+
+## Szerszám / Tool
+- SN-68B Crimps Plug JST ,TE,XH,SM,VH,PH,Molex Terminals Ratchet Crimper Pliers For 0.08-1.5mm²(28-16 AWG) Wires Tool
+https://www.aliexpress.com/item/1005008523636465.html?spm=a2g0o.order_list.order_list_main.66.514b1802aakfO9
+
+---
+
+### Ha támogatni szeretnéd a munkámat itt meghívhatsz egy kávéra!!!     
+<a href="https://buymeacoffee.com/vtom">
+    <img src="../images/buymeacoffee.png" width="200">
+</a>

@@ -455,6 +455,8 @@ void Display::_swichMode(displayMode_e newmode) {
     if (newmode == NUMBERS) { _showDialog(""); }
 #    if (DSP_MODEL == DSP_ILI9488) || (DSP_MODEL == DSP_ST7796)
     if (newmode == PRESETS) {
+        // Drop stale player-mode draw requests so they cannot paint over the presets screen.
+        resetQueue();
         _pager->setPage(pages[PG_PRESETS], true);
         presets_drawScreen();
     }

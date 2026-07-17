@@ -54,8 +54,8 @@ Supported languages: HU, PL, NL, GR, DE (UA Local/namedays/namedays_UA.h is not 
 */
 
 /*----- Touch SPI -----*/
-// #define TS_MODEL TS_MODEL_XPT2046
-// #define TS_CS    3
+#define TS_MODEL TS_MODEL_XPT2046
+#define TS_CS    3
 
 /*----- Touch I2C -----*/
 //#define TS_MODEL TS_MODEL_FT6X36
@@ -94,9 +94,9 @@ Supported languages: HU, PL, NL, GR, DE (UA Local/namedays/namedays_UA.h is not 
 //// #define RTC_MODULE DS3231
 
 /*----- REMOTE CONTROL INFRARED RECEIVER -----*/
-/*----- Alvásból ébresztéshez a GPIO 2 -őt kell használni, mert a GPIO 38 nem RTC pin. A PCB-n át kell kötni! -----*/
-/*----- To wake from sleep, you must use GPIO 2, because GPIO 38 is not an RTC pin. It must be connected via the PCB! -----*/
-#define IR_PIN 2  //38
+/*----- Alvásból ébresztéshez a GPIO 2 -őt kell használni -----*/
+/*----- To wake from sleep, you must use GPIO 2 -----*/
+#define IR_PIN 2
 #define IR_NEC_ONLY  // Build only NEC decoder sources from IRremoteESP8266 (faster/smaller build)
 
 /*----- Sleep functions -----*/
@@ -109,8 +109,8 @@ Supported languages: HU, PL, NL, GR, DE (UA Local/namedays/namedays_UA.h is not 
 #define WAKE_PIN2 ENC2_BTNB
 
 /*----- SD CARD -----*/
-// #define SDC_CS     18
-// #define SD_SPIPINS 12, 13, 11, SDC_CS  // SCK, MISO, MOSI, CS
+ #define SDC_CS     18
+ #define SD_SPIPINS 12, 13, 11, SDC_CS  // SCK, MISO, MOSI, CS
 
 /*----- Ezzel a beállítással nincs görgetés az időjárás sávon. -----*/
 /*----- With this setting there is no scrolling on the weather bar. -----*/
@@ -129,7 +129,7 @@ erősítő tápellátását kapcsoló relét. Amikor nincs zenelejátszás (STOP
 Ez a változás akkor történik, amikor a képernyővédő "while not playing" üzemmódban bekapcsol.
 This pin controls the amplifier's power supply. When music is playing, the pin is set to HIGH to control the relay.
 When music is not playing (stopped or volume is 0), the pin is set to LOW. This change occurs when the screensaver is running. -----*/
-// #define PWR_AMP 2
+// #define PWR_AMP 38
 
 /*----- Ha ez definiálva van a rádió indításakor, mindig az első csatorna lesz beállítva. -----*/
 /*----- If this is defined at radio startup, the first channel will always be set. -----*/
@@ -141,4 +141,4 @@ When music is not playing (stopped or volume is 0), the pin is set to LOW. This 
 // #define dlnaHost "192.168.1.200"
 // #define dlnaIDX  21
 
-//#define POWER_LED 38      // Button LED pin (will be turned on when player is on)
+#define POWER_LED 38      // Button LED, DAC, RTC power on/off pin 

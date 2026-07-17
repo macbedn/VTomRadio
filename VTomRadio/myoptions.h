@@ -54,8 +54,8 @@ Supported languages: HU, PL, NL, GR, DE (UA Local/namedays/namedays_UA.h is not 
 */
 
 /*----- Touch SPI -----*/
-#define TS_MODEL TS_MODEL_XPT2046
-#define TS_CS    3
+//#define TS_MODEL TS_MODEL_XPT2046
+//#define TS_CS    3
 
 /*----- Touch I2C -----*/
 //#define TS_MODEL TS_MODEL_FT6X36
@@ -109,8 +109,8 @@ Supported languages: HU, PL, NL, GR, DE (UA Local/namedays/namedays_UA.h is not 
 #define WAKE_PIN2 ENC2_BTNB
 
 /*----- SD CARD -----*/
- #define SDC_CS     18
- #define SD_SPIPINS 12, 13, 11, SDC_CS  // SCK, MISO, MOSI, CS
+//#define SDC_CS     18
+//#define SD_SPIPINS 12, 13, 11, SDC_CS  // SCK, MISO, MOSI, CS
 
 /*----- Ezzel a beállítással nincs görgetés az időjárás sávon. -----*/
 /*----- With this setting there is no scrolling on the weather bar. -----*/
@@ -141,4 +141,4 @@ When music is not playing (stopped or volume is 0), the pin is set to LOW. This 
 // #define dlnaHost "192.168.1.200"
 // #define dlnaIDX  21
 
-#define POWER_LED 38      // Button LED, DAC, RTC power on/off pin 
+//#define POWER_LED 38      // Button LED, DAC, RTC power on/off pin 

@@ -1,5 +1,8 @@
 var hostname = window.location.hostname;
 var modesd = false;
+var modedlna = false;
+var playlistTimer = null;
+var currentSource = 'web';
 const query = window.location.search;
 const params = new URLSearchParams(query);
 const yoTitle = 'VTom Radio';
@@ -113,18 +116,36 @@ function onMessage(event) {
       setTimeout(function(){ window.location.href=data.redirect; }, 4000);
       return;
     }
-    if(typeof data.playermode !== 'undefined') { //Web, SD
+    if(typeof data.playermode !== 'undefined') { //Web, SD, DLNA
+      const prevSource = currentSource;
       modesd = data.playermode=='modesd';
-      classEach('modeitem', function(el){ el.classList.add('hidden') });
-      if(modesd) showById(['modesd', 'sdsvg'],['plsvg']); else showById(['modeweb','plsvg','bitinfo'],['sdsvg','snuffle']);
+      modedlna = data.playermode=='modedlna';
+      setSourceButtons(data.playermode);
+      if(modesd || modedlna) showById(['bitinfo'],['snuffle']);
+      else showById(['bitinfo'],['timelinesvg','soundsvg','snuffle']);
+      getId('toggleplaylist').classList.toggle('hidden', !(modesd || modedlna));
+      getId('editplaylist').classList.toggle('hidden', modesd);
       showById(['volslider'],['sdslider']);
-      getId('toggleplaylist').classList.remove('active');
-      generatePlaylist(`http://${hostname}/data/playlist.csv`+"?"+new Date().getTime());
+      updateToggleIcon();
+      getId('editplaylist').classList.remove('active');
+      getId('pleditorwrap').classList.add('hidden');
+      getId('plsvg').classList.remove('hidden');
+      getId('editbacksvg').classList.add('hidden');
+      // Repeated playermode messages arrive in bursts; load the playlist once after a source change.
+      if(prevSource!=currentSource){
+        if(playlistTimer) clearTimeout(playlistTimer);
+        playlistTimer = setTimeout(function(){
+          playlistTimer = null;
+          generatePlaylist(`http://${hostname}/data/playlist.csv`+"?"+new Date().getTime());
+        }, 250);
+      }
       // Add hiding elements with modeweb class in SD mode
       classEach('modeweb', function(el){ el.classList.toggle('hidden', modesd); });
+      getId('searchradio').classList.toggle('hidden', modesd || modedlna);
       return;
     }
     if(typeof data.sdinit !== 'undefined') {
+      getId('src-sd').classList.toggle('hidden', data.sdinit!=1);
       if(data.sdinit==1) {
         getId('playernav').classList.add("sd");
         getId('volmbutton').classList.add("hidden");
@@ -166,7 +187,7 @@ function onMessage(event) {
       });
     }else{
       if(typeof data.current !== 'undefined') { setCurrentItem(data.current); return; }
-      if(typeof data.file !== 'undefined') { generatePlaylist(data.file+"?"+new Date().getTime()); wsSend('submitplaylistdone=1'); return; }
+      if(typeof data.file !== 'undefined') { generatePlaylist(`http://${hostname}/data/playlist.csv`+"?"+new Date().getTime()); wsSend('submitplaylistdone=1'); return; }
       if(typeof data.act !== 'undefined'){ data.act.forEach(showclass=> { classEach(showclass, function(el) { el.classList.remove("hidden"); }); }); return; }
       Object.keys(data).forEach(key=>{
         setupElement(key, data[key]);
@@ -358,6 +379,19 @@ function buildGenreIndexFromCSV(fileData){
   }
   __genreList = Array.from(set).sort((a,b)=>a.localeCompare(b));
 }
+function alignPlaylistBg(){
+  const pl = getId('playlist');
+  if(!pl) return;
+  const lis = pl.children;
+  let last = null, k = 0;
+  for(let i = lis.length - 1; i >= 0; i--){
+    if(lis[i].style.display !== 'none'){ last = lis[i]; k = i + 1; break; }
+  }
+  const bottom = last ? last.offsetTop + last.offsetHeight : 0;
+  // Az üres rész csíkozása közvetlenül az utolsó sor után, a sor paritásának megfelelően folytatódik
+  pl.style.backgroundSize = '2px 80px';
+  pl.style.backgroundPositionY = (bottom + (k % 2 ? 40 : 0)) + 'px';
+}
 function filterPlaylist() {
   const customInput = getId('custominput');
   const playlist = getId('playlist');
@@ -368,6 +402,7 @@ function filterPlaylist() {
     const name = item.textContent.toLowerCase();
     item.style.display = name.includes(searchTerm) ? '' : 'none';
   });
+  alignPlaylistBg();
 }
 function annotatePlaylistWithGenres(){
   const nodes = document.querySelectorAll('#playlist [attr-id]');
@@ -466,6 +501,13 @@ function doPlUpload(finput) {
   xhr.send(formData);
   finput.value = '';
 }
+function updateToggleIcon(){
+  if(!(modesd || modedlna)) return;
+  const timelineVisible = !getId('sdslider').classList.contains('hidden');
+  // The button shows the view it switches to
+  getId('timelinesvg').classList.toggle('hidden', timelineVisible);
+  getId('soundsvg').classList.toggle('hidden', !timelineVisible);
+}
 function toggleTarget(el, id){
   const target = getId(id);
   if(id=='pleditorwrap'){
@@ -473,14 +515,23 @@ function toggleTarget(el, id){
     audiopreview.src='';
     getId('previewinfo').innerHTML='';
   }
+  if(id=='sliderswap'){
+    getId('sdslider').classList.toggle('hidden');
+    getId('volslider').classList.toggle('hidden');
+    getId('bitinfo').classList.toggle('hidden');
+    if(modesd) getId('snuffle').classList.toggle('hidden');
+    updateToggleIcon();
+    return;
+  }
   if(target){
-    if(id=='pleditorwrap' && modesd) {
-      getId('sdslider').classList.toggle('hidden');
-      getId('volslider').classList.toggle('hidden');
-      getId('bitinfo').classList.toggle('hidden');
-      getId('snuffle').classList.toggle('hidden');
-    }else target.classList.toggle("hidden");
-    getId(target.dataset.target).classList.toggle("active");
+    target.classList.toggle("hidden");
+    if(id!='pleditorwrap') getId(target.dataset.target).classList.toggle("active");
+    if(id=='pleditorwrap'){
+      const editing = !target.classList.contains('hidden');
+      getId('plsvg').classList.toggle('hidden', editing);
+      getId('editbacksvg').classList.toggle('hidden', !editing);
+      if(modedlna) getId('toggleplaylist').classList.toggle('hidden', editing);
+    }
   }
 }
 function checkboxClick(cb, command){
@@ -497,9 +548,12 @@ function handleWiFiData(fileData) {
   var lines = fileData.split('\n');
   for(var i = 0;i < lines.length;i++){
     let line = lines[i].split('\t');
-    if(line.length==2){
+    if(line[0].trim() !== "" && getId("ssid"+i)){
       getId("ssid"+i).value=line[0].trim();
-      getId("pass"+i).attr('data-pass', line[1].trim());
+      const passEl=getId("pass"+i);
+      if(passEl){
+        passEl.value=line.length>=2 ? line[1].trim() : "";
+      }
     }
   }
 }
@@ -516,6 +570,80 @@ function getWiFi(path){
   };
   xhr.open("GET", path);
   xhr.send(null);
+}
+function initWiFiSettingsView(){
+  const results=getId('wifi-scan-results');
+  if(!results) return;
+  const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+  const fetchWifiScan=async()=>{
+    for(let attempt=0;attempt<8;attempt++){
+      const response=await fetch('/wifiscan',{cache:'no-store'});
+      const running=response.headers.get('X-WiFi-Scan-Running')==='1';
+      const networks=await response.json();
+      if(Array.isArray(networks)&&networks.length>0) return networks;
+      if(!running) return Array.isArray(networks)?networks:[];
+      await wait(350);
+    }
+    return [];
+  };
+  document.querySelectorAll('.wifi-scan-button').forEach(button=>{
+    button.addEventListener('click',async()=>{
+      const ssidInput=getId(button.dataset.ssidTarget);
+      if(!ssidInput) return;
+      const credentialRow=button.closest('.wifi-credential');
+      if(credentialRow) {
+        credentialRow.after(results);
+        results.scrollIntoView({behavior:'smooth',block:'nearest'});
+      }
+      button.classList.add('hl');
+      results.classList.remove('hidden');
+      results.innerHTML='<div class="wifi-scan-result">Searching...</div>';
+      try{
+        const networks=await fetchWifiScan();
+        results.innerHTML='';
+        if(!networks.length){
+          results.innerHTML='<div class="wifi-scan-result">No networks found</div>';
+          return;
+        }
+        networks.forEach(network=>{
+          const item=document.createElement('div');
+          item.className='wifi-scan-result';
+          const name=document.createElement('span');
+          name.textContent=network.ssid||'';
+          const signal=document.createElement('span');
+          signal.className='wifi-scan-rssi';
+          signal.textContent=`${network.rssi} dBm`;
+          item.append(name,signal);
+          item.addEventListener('click',()=>{
+            ssidInput.value=network.ssid||'';
+            results.classList.add('hidden');
+          });
+          results.appendChild(item);
+        });
+      }catch(error){
+        results.innerHTML='<div class="wifi-scan-result">Scan failed</div>';
+      }finally{
+        button.classList.remove('hl');
+      }
+    });
+  });
+  document.querySelectorAll('.wifi-eye-button').forEach(button=>{
+    button.addEventListener('click',()=>{
+      const passInput=getId(button.dataset.passTarget);
+      if(!passInput) return;
+      if(passInput.type==='password'){
+        passInput.type='text';
+        button.classList.add('hl');
+        button.title='Hide password';
+        button.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.49 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+      }else{
+        passInput.type='password';
+        button.classList.remove('hl');
+        button.title='Show password';
+        button.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+      }
+    });
+  });
 }
 function applyTZ(){
   wsSend("tzh="+getId("tzh").value);
@@ -613,11 +741,11 @@ function rebootSystem(info){
 }
 function submitWiFi(){
   var output="";
-  var items=document.getElementsByClassName("credential");
+  var items=document.getElementsByClassName("wifi-credential");
   for (var i = 0; i <= items.length - 1; i++) {
-    inputs=items[i].getElementsByTagName("input");
+    const inputs=items[i].getElementsByTagName("input");
     if(inputs[0].value == "") continue;
-    let ps=inputs[1].value==""?inputs[1].dataset.pass:inputs[1].value;
+    const ps=inputs[1].value;
     output+=inputs[0].value+"\t"+ps+"\n";
   }
   if(output!=""){ // Well, let's say, quack.
@@ -662,13 +790,32 @@ function hideSpinner(){
   getId("progress").classList.add("hidden");
   getId("content").classList.remove("hidden");
 }
-function changeMode(el){
-  const cmd = el.dataset.command;
-  //setPlaylistMod();
-  el.classList.add('hidden');
-  if(cmd=='web') getId('modesd').classList.remove('hidden');
-  else getId('modeweb').classList.remove('hidden');
-  wsSend("newmode="+(cmd=="web"?0:1));
+function setSourceButtons(mode){
+  currentSource = mode=='modesd' ? 'sd' : (mode=='modedlna' ? 'dlna' : 'web');
+  ['web','sd','dlna'].forEach(s=>{
+    const b = getId('src-'+s);
+    if(b) b.classList.toggle('active', s==currentSource);
+  });
+}
+async function switchSource(src){
+  const dlnaOk = typeof dlnaSupported !== 'undefined' && dlnaSupported;
+  if(src=='sd'){
+    if(currentSource!='sd') wsSend("newmode=1");
+  }else if(src=='dlna'){
+    if(!dlnaOk) return;
+    if(currentSource=='dlna'){ window.location.href='dlna.html'; return; }
+    let exists = false;
+    try{
+      const r = await fetch(`/data/playlist_dlna.csv?${Date.now()}`, {cache:'no-store'});
+      exists = r.ok && (await r.text()).trim().length > 0;
+    }catch(e){}
+    if(exists) fetch('/playlist/dlna', {cache:'no-store'});
+    else window.location.href='dlna.html';
+  }else if(src=='web'){
+    if(currentSource=='web') return;
+    if(dlnaOk) fetch('/playlist/web', {cache:'no-store'});
+    else wsSend("newmode=0");
+  }
 }
 function toggleSnuffle(){
   let el = getId('snuffle');
@@ -701,8 +848,8 @@ function playPreview(root) {
 function continueLoading(mode){
   if(loaded) return;
   if(typeof mode === 'undefined' || !mode) mode = 'ap';
-  if(mode=="player"){
-    const pathname = window.location.pathname;
+  const pathname = window.location.pathname;
+  if(mode=="player" || pathname=='/wifiset'){
     if(['/','/index.html'].includes(pathname)){
       document.title = `${yoTitle} - Player`;
       fetch(`player.html?${fwVersion}`).then(response => response.text()).then(player => { 
@@ -715,14 +862,9 @@ function continueLoading(mode){
           generatePlaylist(`http://${hostname}/data/playlist.csv` + "?" + new Date().getTime());
           populateBankSelect();
 		  //DLNA mod
-			const dlnaBtn = document.getElementById('dlnabtn');
-			if (dlnaBtn) {
-			  if (typeof dlnaSupported !== 'undefined' && !dlnaSupported) {
-				dlnaBtn.classList.add('hidden');
-			  } else {
-				dlnaBtn.addEventListener('click', openDlna);
-				dlnaBtn.classList.remove('hidden');
-			  }
+			const dlnaBtn = document.getElementById('src-dlna');
+			if (dlnaBtn && typeof dlnaSupported !== 'undefined' && !dlnaSupported) {
+			  dlnaBtn.classList.add('hidden');
 			}
         });
         getId("version").innerText=` | v${fwVersion}`;
@@ -772,6 +914,24 @@ function continueLoading(mode){
         }
       });
     }
+    if(pathname=='/wifiset'){
+      document.title = `${yoTitle} - Wi-Fi Settings`;
+      fetch(`wifiset.html?${fwVersion}`).then(response => response.text()).then(wifiset => {
+        getId('content').innerHTML = wifiset;
+        fetch('logo.svg').then(response => response.text()).then(svg => {
+          getId('logo').innerHTML = svg;
+          hideSpinner();
+        });
+        getId("version").innerText=` | v${fwVersion}`;
+        getWiFi(`http://${hostname}/data/wifi.csv`+"?"+new Date().getTime());
+        wsSend('getsystem=1');
+        initWiFiSettingsView();
+      }).catch(() => {
+        hideSpinner();
+        const content=getId('content');
+        if(content) content.innerHTML='<div style="padding:20px;text-align:center;">Wi-Fi settings page failed to load.</div>';
+      });
+    }
     if(pathname=='/update.html'){
       document.title = `${yoTitle} - Update`;
       fetch(`updform.html?${fwVersion}`).then(response => response.text()).then(updform => {
@@ -814,11 +974,11 @@ function continueLoading(mode){
         });
     }
   }else{ // AP mode
-    fetch(`options.html?${fwVersion}`).then(response => {
-      if (!response.ok) throw new Error('options load failed');
+    fetch(`wifiset.html?${fwVersion}`).then(response => {
+      if (!response.ok) throw new Error('Wi-Fi settings load failed');
       return response.text();
-    }).then(options => {
-      getId('content').innerHTML = options; 
+    }).then(wifiset => {
+      getId('content').innerHTML = wifiset;
       fetch('logo.svg').then(response => {
         if (!response.ok) return '';
         return response.text();
@@ -829,22 +989,12 @@ function continueLoading(mode){
       });
       getId("version").innerText=` | v${fwVersion}`;
       getWiFi(`http://${hostname}/data/wifi.csv`+"?"+new Date().getTime());
-      // AP fallback: make Wi-Fi section visible even when websocket state sync is delayed.
-      const nav = getId('navigation');
-      if (nav) nav.classList.remove('hidden');
-      classEach('group_wifi', function(el){ el.classList.remove('hidden'); });
-
       wsSend('getsystem=1');
-      wsSend('getscreen=1');
-      wsSend('gettimezone=1');
-      wsSend('getweather=1');
-      wsSend('getcontrols=1');
-      wsSend('getactive=1');
-      updateClockFontMonoUi(false);
+      initWiFiSettingsView();
     }).catch(() => {
       hideSpinner();
       const c = getId('content');
-      if (c) c.innerHTML = '<div style="padding:20px;text-align:center;">AP settings page failed to load. Open <a href="/webboard">/webboard</a>.</div>';
+      if (c) c.innerHTML = '<div style="padding:20px;text-align:center;">Wi-Fi settings page failed to load. Open <a href="/webboard">/webboard</a>.</div>';
     });
   }
   document.body.addEventListener('click', (event) => {
@@ -892,6 +1042,8 @@ function continueLoading(mode){
           case "webboard": window.location.href=`http://${hostname}/webboard`; break;
           case "themeeditor": window.location.href=`http://${hostname}/theme-editor.html`; break;
           case "setupir": window.location.href=`http://${hostname}/ir.html`; break;
+          case "wifiset": window.location.href=`http://${hostname}/wifiset`; break;
+          case "wifisetback": window.location.href=`http://${hostname}/settings.html`; break;
           case "applyweather":
             let key=getId("wkey").value;
             if(key!=""){
@@ -910,6 +1062,7 @@ function continueLoading(mode){
           case "format": wsSend("format=1"); rebootSystem('Format SPIFFS. Rebooting...'); break;
           case "reset":  wsSend("reset=1");  rebootSystem('Reset settings. Rebooting...'); break;
           case "snuffle": toggleSnuffle(); break;
+          case "source": switchSource(target.dataset.source); break;
           case "rebootmdns": wsSend(`mdnsname=${getId('mdns').value}`); wsSend("rebootmdns=1"); break;
           default: break;
         }
@@ -939,7 +1092,6 @@ function continueLoading(mode){
             wsSend(`${command}=1`);
           }
         }
-        if(target.classList.contains("modeitem")) changeMode(target);
         if(target.hasClass("pleplay")) playPreview(target.parentElement);
         if(target.classList.contains("play")){ // A lejátszás indítása.
           const item = target.attr('attr-id');
@@ -959,6 +1111,7 @@ function continueLoading(mode){
       command = target.parentElement.dataset.command;
     }
     if (command) {
+      if(command==='wifiminrssi') return;
       if(target && target.type==='range') sliderInput(target, command);  //<-- range
       else wsSend(`${command}=${target ? target.value : ''}`);   //<-- other
       event.preventDefault(); event.stopPropagation();
@@ -977,6 +1130,12 @@ function continueLoading(mode){
   });
   document.body.addEventListener('change', (event) => {
     const target = event.target;
+    if(target && target.dataset && target.dataset.command==='wifiminrssi') {
+      const value=Number(target.value);
+      target.value=Number.isFinite(value) ? Math.min(-50, Math.max(-95, Math.round(value))) : -75;
+      wsSend(`wifiminrssi=${target.value}`);
+      return;
+    }
     if (!target || target.tagName !== 'SELECT') return;
     const command = target.dataset ? target.dataset.command : undefined;
     if (!command) return;

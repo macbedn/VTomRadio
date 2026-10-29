@@ -554,7 +554,7 @@ static void drawSlot(uint8_t slot, bool pressed = false, bool savedFlash = false
 
     const char* name = readNameC(slot);
     if (name[0] == 0 || strcmp(name, "---") == 0) {
-        _spr->setTextColor(0x8410);
+        _spr->setTextColor(config.theme.prst_title3);
         char msg[32];
         strncpy_P(msg, LANG::prstEmptyPreset, sizeof(msg) - 1);
         _spr->drawCenterString(msg, x + bw / 2, y + bh / 2 - 8);
@@ -612,7 +612,7 @@ static void drawFav(uint8_t fav) {
     }
 
     // szín
-    _spr->setTextColor(active ? config.theme.prst_fav : config.theme.prst_title3);
+    _spr->setTextColor(active ? config.theme.prst_fav : config.theme.prst_fav_inactive);
 
     // középre igazítás
     int16_t tx = x + (bw - tw) / 2;
@@ -695,7 +695,7 @@ static void drawInputBox() {
     int16_t bh = 40;
     _spr->fillRect(TOPBAR_MARGIN, TOPBAR_Y, bw, bh, config.theme.metabg);
     _spr->drawRect(TOPBAR_MARGIN, TOPBAR_Y, bw, bh, config.theme.div);
-    _spr->setTextColor(0xFFFF, config.theme.metabg);
+    _spr->setTextColor(config.theme.prst_title1, config.theme.metabg);
     String show = s_kbdText;
     if (show.length() > KBD_MAX) { show = show.substring(0, KBD_MAX); }
     if (show.length() == 0) { show = "_"; }
@@ -807,7 +807,7 @@ static void drawKeyboard() {
     int16_t wCan = W - wSpace - wOk - 2 * gap;
 
     drawKey(x0, y4, wSpace, keyH, {" ", 2, ' '});
-    drawKey(x0 + wSpace + gap, y4, wOk, keyH, {"OK", 3, 0}, true);
+    drawKey(x0 + wSpace + gap, y4, wOk, keyH, {"OK", 3, 0});
     drawKey(x0 + wSpace + gap + wOk + gap, y4, wCan, keyH, {"Cancel", 4, 0});
 
     presetsBlitFull();

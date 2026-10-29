@@ -65,15 +65,18 @@ body.content-loaded #progress {visibility: visible;}
 </head>
 <body>
     <div id="searchcontent">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-            <div class="close-btn modeweb" onclick="goBackToPlayer()" title="Back to player" style="position: relative; top: auto; right: auto;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M15 4L7 12L15 20" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
+        <div id="logow" style="display:flex;align-items:center;margin-bottom:20px;">
+            <div class="logoside">
+                <div class="gb nb" onclick="goBackToPlayer()" title="Back to player">
+                    <svg viewBox="0 0 24 24" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 12h14"></path>
+                        <path d="M5 12l6 6"></path>
+                        <path d="M5 12l6 -6"></path>
+                    </svg>
+                </div>
             </div>
-            <div id="logo" style="flex: 1; display: flex; justify-content: center;">
-            </div>
-            <div style="width: 40px;"></div>
+            <div id="logo"></div>
+            <div class="logoside right"></div>
         </div>
         <h2 class="pagetitle">Radio Search</h2>
         <div id="radiosearchform">
@@ -111,12 +114,15 @@ body.content-loaded #progress {visibility: visible;}
                 <div class="fb small" id="loadmore" onclick="loadMoreStations()">Load More</div>
             </div>
         </div>
-        <div id="copy" style="margin-top: 14px;">powered by <a target="_blank" href="https://github.com/VaraiTamas/VTomRadio.git">VTom Radio</a></div>
+        <div id="copy" style="margin-top: 14px;">powered by <a target="_blank" href="https://github.com/VaraiTamas/VTomRadio.git">        VTom Radio</a><span id="version"></span></div>
     </div>
     <div id="progress" class="hidden">
         <div id="loader"></div>
     </div>
-    <script>
+            <script src="variables.js"></script>
+            <script>
+                const versionEl=document.getElementById('version');
+                if(versionEl && typeof fwVersion!=='undefined') versionEl.innerText=` | v${fwVersion}`;
         const API_SERVERS=[
             'https://fi1.api.radio-browser.info/json',
             'https://de1.api.radio-browser.info/json',

@@ -63,7 +63,8 @@ public:
   void initHeaders(const char *file);
   void setError();
   void setError(const char *e);
-  void sendCommand(playerRequestParams_t request);
+  bool sendCommand(playerRequestParams_t request);
+  bool sendCommandFirst(playerRequestParams_t request);
   void resetQueue();
 #ifdef MQTT_ROOT_TOPIC
   void browseUrl();

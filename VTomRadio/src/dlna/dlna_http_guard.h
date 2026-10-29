@@ -6,7 +6,15 @@
 extern SemaphoreHandle_t g_dlnaHttpMux;
 
 struct DlnaHttpGuard {
-  DlnaHttpGuard()  { if (g_dlnaHttpMux) xSemaphoreTake(g_dlnaHttpMux, portMAX_DELAY); }
-  ~DlnaHttpGuard() { if (g_dlnaHttpMux) xSemaphoreGive(g_dlnaHttpMux); }
+  bool ok = false;   // false: a mutex nem szerezhető meg időben -> a hívó ne végezzen HTTP-t
+  explicit DlnaHttpGuard(uint32_t timeoutMs = 1500) {
+    ok = g_dlnaHttpMux ? (xSemaphoreTake(g_dlnaHttpMux, pdMS_TO_TICKS(timeoutMs)) == pdTRUE) : true;
+    _taken = ok && g_dlnaHttpMux;
+  }
+  ~DlnaHttpGuard() { if (_taken) xSemaphoreGive(g_dlnaHttpMux); }
+  DlnaHttpGuard(const DlnaHttpGuard&) = delete;
+  DlnaHttpGuard& operator=(const DlnaHttpGuard&) = delete;
+private:
+  bool _taken = false;
 };
 #endif

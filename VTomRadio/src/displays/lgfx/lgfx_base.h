@@ -11,6 +11,20 @@
 
 #include "../../core/options.h"
 
+// Default SPI clocks for LovyanGFX bus.
+// Keep known-good defaults; override in myoptions.h when tuning signal integrity.
+#ifndef LGFX_LCD_FREQ_WRITE
+#  define LGFX_LCD_FREQ_WRITE 40000000 //24, 26, 28, 30, 32, 36 MHz értékeket is (Hz-ben megadva)
+#endif
+
+#ifndef LGFX_LCD_FREQ_READ
+#  define LGFX_LCD_FREQ_READ 16000000
+#endif
+
+#ifndef LGFX_TOUCH_SPI_FREQ
+#  define LGFX_TOUCH_SPI_FREQ 2500000
+#endif
+
 #if TS_MODEL == TS_MODEL_AXS15231B
 #include "touch_axs15231b.h"
 #endif
@@ -44,11 +58,16 @@ class LGFX_Base : public lgfx::LGFX_Device {
     applySpiHost(cfg);
     cfg.pin_sclk = 12;
     cfg.pin_mosi = 11;
-    cfg.pin_miso = 13;  
+#if TS_MODEL == TS_MODEL_XPT2046
+    cfg.pin_miso = 13;
+#else
+    // A kijelző MISO-ja nincs bekötve; a 13-as lábat az SD kártya használja, ezért a kijelző busz ne olvassa.
+    cfg.pin_miso = -1;
+#endif
     cfg.use_lock = true;
     cfg.pin_dc = TFT_DC;
-    cfg.freq_write = 40000000;
-    cfg.freq_read = 16000000;
+    cfg.freq_write = LGFX_LCD_FREQ_WRITE;
+    cfg.freq_read = LGFX_LCD_FREQ_READ;
     _bus.config(cfg);
     _panel.setBus(&_bus);
   }
@@ -75,7 +94,7 @@ class LGFX_Base : public lgfx::LGFX_Device {
     cfg.pin_cs = TS_CS;
     cfg.bus_shared = true;
     applySpiHost(cfg);
-    cfg.freq = 2500000;
+    cfg.freq = LGFX_TOUCH_SPI_FREQ;
     cfg.offset_rotation = _rotationOffset;
 #elif TS_MODEL == TS_MODEL_GT911 || TS_MODEL == TS_MODEL_FT6X36
     cfg.pin_sda = TS_SDA;

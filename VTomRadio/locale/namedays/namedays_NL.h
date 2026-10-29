@@ -9,7 +9,7 @@ Het programma wisselt ze dan elke 4 seconden om.
 
 const char* nameday_label = "Naamdag:";
 
-const char* namedays[] = {
+const char* const namedays[] = {
   // Január
   "Alpár,Fruzsina,Bazil",
   "Ábel,Gergely,Vazul",

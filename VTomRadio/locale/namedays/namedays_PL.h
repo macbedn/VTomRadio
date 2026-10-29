@@ -10,7 +10,7 @@ program będzie je zamieniał co 4 sekundy.
 const char* nameday_label = "Imieniny:";
 
   // Tablica imienin - imiona oddzielone przecinkami na każdy dzień roku (rotacja co 4 sekundy) - źródło: kalendarzswiat.pl
-const char* namedays[] PROGMEM = {
+const char* const namedays[] PROGMEM = {
   // Styczeń (31 dni)
   "Mieczysława,Mieszka", "Izydora,Makarego", "Danuty,Genowefy", "Anieli,Eugeniusza", "Edwarda,Szymona", "Kacpra,Melchiora,Baltazara", "Juliana,Lucjana", "Seweryna,Teofila", "Weroniki,Juliana", "Jana,Wilhelma",
   "Matyldy,Honoraty", "Benedykta,Arkadiusza", "Weroniki,Bogumiły", "Feliksa,Hilarego", "Pawła,Izydora", "Marcelego,Włodzimierza", "Antoniego,Rościsława", "Piotra,Małgorzaty", "Henryka,Mariusza", "Fabiana,Sebastiana",

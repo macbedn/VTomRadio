@@ -154,7 +154,7 @@ void TouchScreen::loop() {
                             if (display.mode() == PLAYER || display.mode() == VOL) {
                                 int16_t xDelta = map(abs(touchVol - touchX), 0, _width, 0, TS_STEPS_X);
                                 if (xDelta >= 1) {
-                                    display.putRequest(NEWMODE, VOL);
+                                    if (display.mode() != VOL) { display.putRequest(NEWMODE, VOL); }
                                     controlsEvent((touchVol - touchX) < 0);
                                     touchVol = touchX;
                                 }
@@ -167,7 +167,7 @@ void TouchScreen::loop() {
                             if (display.mode() == PLAYER || display.mode() == STATIONS) {
                                 int16_t yDelta = map(abs(touchStation - touchY), 0, _height, 0, TS_STEPS_Y);
                                 if (yDelta >= 1) {
-                                    display.putRequest(NEWMODE, STATIONS);
+                                    if (display.mode() != STATIONS) { display.putRequest(NEWMODE, STATIONS); }
                                     controlsEvent((touchStation - touchY) < 0);
                                     touchStation = touchY;
                                 }

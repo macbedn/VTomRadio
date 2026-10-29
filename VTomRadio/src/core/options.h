@@ -2,10 +2,10 @@
 #    define options_h
 #    pragma once
 
-#    define FW_VERSION "0.1.8_MB"
+#    define FW_VERSION "0.2.4_MB"
 
 #    ifndef THEME_CSV_VERSION
-#        define THEME_CSV_VERSION "0.0.1"
+#        define THEME_CSV_VERSION "0.0.3"
 #    endif
 
 /*******************************************************
@@ -144,6 +144,9 @@ STORE YOUR SETTINGS IN THE *** myoptions.h *** FILE.
 #if SDC_CS!=255
   #define USE_SD
 #endif
+#ifndef SDSPISPEED
+  #define SDSPISPEED 20000000
+#endif
 /*        ENCODER                 */
 #ifndef ENC_BTNL
   #define ENC_BTNL              255
@@ -188,13 +191,13 @@ STORE YOUR SETTINGS IN THE *** myoptions.h *** FILE.
   #define BTN_RIGHT             255
 #endif
 #ifndef BTN_UP
-  #define BTN_UP            255
+  #define BTN_UP                255
 #endif
 #ifndef BTN_DOWN
-  #define BTN_DOWN             255
+  #define BTN_DOWN              255
 #endif
 #ifndef BTN_MODE
-  #define BTN_MODE             255
+  #define BTN_MODE              255
 #endif
 #ifndef BTN_INTERNALPULLUP
   #define BTN_INTERNALPULLUP    true
@@ -301,7 +304,7 @@ STORE YOUR SETTINGS IN THE *** myoptions.h *** FILE.
 #endif
 /*        Other settings. You can overwrite them in the myoptions.h file        */
 #ifndef NAMEDAYS_FILE
-  #define NAMEDAYS_FILE HU  // Namedays file for the selected language. Supported languages: HU, PL, NL, GR, DE (UA Local/namedays/namedays_UA.h is not filled in.)
+  #define NAMEDAYS_FILE HU  // Namedays file for the selected language. Supported languages: HU, PL, NL, GR, DE, CZ, SK (UA locale/namedays/namedays_UA.h is not filled in.)
 #endif
 #ifndef MUTE_PIN
   #define MUTE_PIN      255   // MUTE Pin
@@ -314,6 +317,9 @@ STORE YOUR SETTINGS IN THE *** myoptions.h *** FILE.
 #endif
 #ifndef BRIGHTNESS_PIN
   #define BRIGHTNESS_PIN 255   // BRIGHTNESS Pin
+#endif
+#ifndef BRIGHTNESS_PWM_FREQ
+  #define BRIGHTNESS_PWM_FREQ 1000   // Backlight PWM frequency in Hz
 #endif
 #ifndef PLAYER_FORCE_MONO
   #define PLAYER_FORCE_MONO      false  // mono option - false stereo, true mono
@@ -642,7 +648,7 @@ STORE YOUR SETTINGS IN THE *** myoptions.h *** FILE.
   #define PWR_AMP                255
 #endif
 
-#include <SPI.h>
+//#include <SPI.h>
 #if !defined(CONFIG_IDF_TARGET_ESP32)
 #define VSPI FSPI
 #endif
@@ -690,10 +696,9 @@ STORE YOUR SETTINGS IN THE *** myoptions.h *** FILE.
 #endif
 
 /***** Ébresztés / Wakeup *****/
-#if defined(CONFIG_IDF_TARGET_ESP32S3) 
-    // Ha ESP32-S3 vagy S2 chipre fordítunk, akkor létezik az ANY_LOW mód
-    #define EXT1_MODE ESP_EXT1_WAKEUP_ANY_LOW
+#if defined(CONFIG_IDF_TARGET_ESP32) || defined(ARDUINO_ESP32_DEV)
+  // Classic ESP32 uses ALL_LOW; newer targets should use ANY_LOW.
+  #define EXT1_MODE ESP_EXT1_WAKEUP_ALL_LOW
 #else
-    // Ha a sima ESP32-re (pl. Wrover, Wroom), ott csak az ALL_LOW érhető el alacsony szinten
-    #define EXT1_MODE ESP_EXT1_WAKEUP_ALL_LOW
+  #define EXT1_MODE ESP_EXT1_WAKEUP_ANY_LOW
 #endif

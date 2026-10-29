@@ -9,7 +9,7 @@ Quelle: https://kalender-365.de/namenstage.php */
 
 const char* nameday_label = "Namenstag:";
 
-const char* namedays[] = {
+const char* const namedays[] = {
   // Januar
   "Neujahr,Maria",
   "Makarius,Gregor,Otfried,Dietmar",

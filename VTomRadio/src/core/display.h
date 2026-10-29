@@ -26,6 +26,7 @@ class Display {
   public:
     uint16_t      currentPlItem;
     uint16_t      numOfNextStation;
+    uint8_t       inputSelectIndex = 0;
     displayMode_e _mode;
 
   public:
@@ -52,6 +53,7 @@ class Display {
     void          setBrightnessPercent(uint8_t percent);
     void          applyVuModeChange();
     void          invalidateThemeWidgets();  // Refresh all widgets when theme colors change
+    void          moveInputSelect(int delta);
 #    ifdef NAMEDAYS_FILE
     void loopNameday(bool force = false);
 #    endif
@@ -75,6 +77,7 @@ class Display {
     NamedayWidget*  _namedaywidget;
 
     bool    _locked = false;
+    bool    _panelAsleep = false;
     uint8_t _bootStep;
     void    _time(bool redraw = false);
     void    _apScreen();
@@ -101,6 +104,7 @@ class Display {
   public:
     uint16_t      currentPlItem;
     uint16_t      numOfNextStation;
+    uint8_t       inputSelectIndex = 0;
     displayMode_e _mode;
 
   public:
@@ -120,6 +124,7 @@ class Display {
     void          setContrast() {}
     void          applyVuModeChange() {}
     bool          deepsleep() { return true; }
+    void          moveInputSelect(int) {}
     void          wakeup() {}
     void          printPLitem(uint8_t pos, const char* item) {}
     void          lock() {}
@@ -132,7 +137,5 @@ class Display {
 };
 
 #endif
-
-void display_show_maintenance_screen();
 
 extern Display display;

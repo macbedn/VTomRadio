@@ -9,7 +9,7 @@
 
 const char* nameday_label = "Névnap:";
 
-const char* namedays[] = {
+const char* const namedays[] = {
   // Január
   "Alpár,Fruzsina,Bazil",
   "Ábel,Gergely,Vazul",
@@ -72,7 +72,7 @@ const char* namedays[] = {
   "Viktor,Győző,Edina",
   "Ákos,Bátor,Gábor",
   "Elemér,Oszvald,Román",
-  "",
+  "Auguszta,Albin", // Február 29. (Szökőnap)
 
   // Március
   "Albin,Albina,Leonita",
@@ -221,7 +221,7 @@ const char* namedays[] = {
   "Örs,Stella,Kamil",
   "Örkény,Henrik,Roland,Bonaventúra,Csegő",
   "Valter,Irma",
-  "Endre,Elek,András",
+  "Endre,Elek",
   "Szömér,Frigyes,Milla,Hedvig,Mirkó,Federikó",
   "Emília",
   "Illés,Margaréta",

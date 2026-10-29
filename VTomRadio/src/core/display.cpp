@@ -5,6 +5,7 @@
 #include "config.h"
 #include "display.h"
 #include "presets.h"
+#include "inputselect.h"
 #include "player.h"
 #include "network.h"
 #include "netserver.h"
@@ -15,7 +16,6 @@
 #include "../displays/widgets/pages.h"
 #include "../displays/tools/language.h"
 #include "fonts.h"
-#include "serial_littlefs.h"
 #include "touchscreen.h"
 // #define LGFX_USE_PNG
 
@@ -100,7 +100,7 @@ void Display::_createDspTask() {
 //============================================================================================================================
 DspCore dsp;
 
-Page* pages[] = {new Page(), new Page(), new Page(), new Page(), new Page()}; // "presets" +1 page
+Page* pages[] = {new Page(), new Page(), new Page(), new Page(), new Page(), new Page()};
 
 #    if !((DSP_MODEL == DSP_ST7735 && DTYPE == INITR_BLACKTAB) || DSP_MODEL == DSP_ST7789 || DSP_MODEL == DSP_ST7796 || DSP_MODEL == DSP_ILI9488 || DSP_MODEL == DSP_ILI9486 || \
           DSP_MODEL == DSP_ILI9341 || DSP_MODEL == DSP_ILI9225 || DSP_MODEL == DSP_ST7789_170 || DSP_MODEL == DSP_SSD1322)
@@ -172,7 +172,7 @@ void Display::_bootScreen() {
     _boot = new Page();
     _boot->addWidget(new ProgressWidget(bootWdtConf, bootPrgConf, 0xFFFF, 0));
     _bootstring = (textBoxWidget*)&_boot->addWidget(
-        new textBoxWidget(bootstrConf, 50, true, 0xFFFF, 0, config.theme.div)); // Módosítás: textBoxWidget használata a boot szöveghez, hogy a hosszabb szövegek is elférjenek.
+        new textBoxWidget(bootstrConf, 50, true, 0xFFFF, 0, config.theme.ip_border)); 
     _pager->addPage(_boot);
     _pager->setPage(_boot, true);
     dsp.drawLogo(bootLogoTop);
@@ -461,6 +461,14 @@ void Display::_swichMode(displayMode_e newmode) {
         presets_drawScreen();
     }
 #    endif
+    if (newmode == INPUTSELECT) {
+        inputSelectIndex = config.getMode() == PM_SDCARD ? INPUT_SD : config.isDlnaMode() ? INPUT_DLNA : INPUT_WEB;
+        inputSelectIndex = inputSelect_normalizeSelection(inputSelectIndex);
+        resetQueue();
+        _pager->setPage(pages[PG_INPUTSELECT], true);
+        inputSelect_drawScreen(inputSelectIndex);
+        timekeeper.waitAndReturnPlayer(config.store.stationsListReturnTime);
+    }
     if (newmode == STATIONS) {
         _refreshThemeColors();
         // Drop stale player-mode draw requests so they cannot paint one extra old frame.
@@ -505,6 +513,7 @@ void Display::putRequest(displayRequestType_e type, int payload) {
         case AUDIOINFO:
         case DSPRSSI:
         case DRAWVOL:
+        case DRAWINPUTSELECT:
             purgeQueuedRequestType(type);
             break;
         default:
@@ -546,6 +555,10 @@ void Display::invalidateThemeWidgets() {
 }
 
 void Display::loop() {
+    static uint32_t lastNetworkInfoSwitchMs = 0;
+    static bool networkInfoSwitchStarted = false;
+    static bool showSsid = false;
+
     if (_bootStep == 0) {
         _pager->begin();
         _bootScreen();
@@ -572,7 +585,7 @@ void Display::loop() {
                 } break;
 
                 case CLOCK:
-                    if (_mode == PLAYER || _mode == SCREENSAVER) { _time(request.payload == 1); }
+                    if (_mode == PLAYER || _mode == SCREENSAVER || _mode == LOST) { _time(request.payload == 1); }
                     /*#ifdef USE_NEXTION
   if(_mode==TIMEZONE) nextion.localTime(network.timeinfo);
   if(_mode==INFO)     nextion.rssi();
@@ -585,6 +598,9 @@ void Display::loop() {
                     if (_mode == NUMBERS) { _drawNextStationNum(request.payload); }
                     break;
                 case DRAWPLAYLIST: _drawPlaylist(); break;
+                case DRAWINPUTSELECT:
+                    if (_mode == INPUTSELECT) { inputSelect_drawScreen(inputSelectIndex); }
+                    break;
                 case DRAWVOL: _volume(); break;
 
                 case DBITRATE: {
@@ -658,6 +674,14 @@ void Display::loop() {
 #endif*/
                     break;
 
+                case BOOTWIFISWITCH:
+                    if (_bootstring) { _bootstring->setText("Wi-Fi switching..."); }
+                    break;
+
+                case BOOTWIFISCAN:
+                    if (_bootstring) { _bootstring->setText("Scanning Wi-Fi..."); }
+                    break;
+
                 case WAITFORSD:
                     if (_bootstring) { _bootstring->setText(LANG::const_waitForSD); }
                     break;
@@ -677,7 +701,15 @@ void Display::loop() {
 
                 case NEWIP:
 #    ifndef HIDE_IP
-                    if (_ipbox) { _ipbox->setText(config.ipToStr(WiFi.localIP()), iptxtFmt); }
+                    if (_ipbox) {
+                        showSsid = false;
+                        networkInfoSwitchStarted = false;
+                        if (network.beginReconnect) {
+                            _ipbox->setText("WiFi Scan...");
+                        } else {
+                            _ipbox->setText(config.ipToStr(WiFi.localIP()), iptxtFmt);
+                        }
+                    }
 #    endif
                     break;
 
@@ -690,8 +722,37 @@ void Display::loop() {
         }
     }
 
+#    ifndef HIDE_IP
+    if (_ipbox && !network.beginReconnect && WiFi.status() == WL_CONNECTED) {
+        const uint32_t now = millis();
+        if (!networkInfoSwitchStarted) {
+            lastNetworkInfoSwitchMs = now;
+            networkInfoSwitchStarted = true;
+        } else if (now - lastNetworkInfoSwitchMs >= 5000) {
+            lastNetworkInfoSwitchMs = now;
+            showSsid = !showSsid;
+            if (showSsid) {
+                String ssid = WiFi.SSID();
+                _ipbox->setText(ssid.c_str());
+            } else {
+                _ipbox->setText(config.ipToStr(WiFi.localIP()), iptxtFmt);
+            }
+        }
+    } else {
+        networkInfoSwitchStarted = false;
+        showSsid = false;
+    }
+#    endif
+
     dsp.loop();
 } // loop vége
+
+void Display::moveInputSelect(int delta) {
+    if (_mode != INPUTSELECT || delta == 0) { return; }
+    inputSelectIndex = inputSelect_moveSelection(inputSelect_normalizeSelection(inputSelectIndex), delta);
+    putRequest(DRAWINPUTSELECT, inputSelectIndex);
+    timekeeper.waitAndReturnPlayer(config.store.stationsListReturnTime);
+}
 
 void Display::_setRSSI(int rssi) {
     if (config.store.rssiAsText && _rssibox) {
@@ -817,6 +878,7 @@ void Display::setContrast() {}
 bool Display::deepsleep() {
 #    if defined(DSP_OLED) || BRIGHTNESS_PIN != 255
     dsp.sleep();
+    _panelAsleep = true;
     return true;
 #    endif
     return false;
@@ -824,6 +886,9 @@ bool Display::deepsleep() {
 
 void Display::wakeup() {
 #    if defined(DSP_OLED) || BRIGHTNESS_PIN != 255
+    // Re-sending SLPOUT/DISPON to an awake panel can disturb its state and stalls the display task.
+    if (!_panelAsleep) { return; }
+    _panelAsleep = false;
     dsp.wake();
 #    endif
 }
@@ -876,24 +941,3 @@ void Display::putRequest(displayRequestType_e type, int payload) {
 }
 //============================================================================================================================
 #endif // DUMMYDISPLAY
-
-#ifndef DUMMYDISPLAY
-void display_show_maintenance_screen() {
-    dsp.initDisplay();
-    dsp.wake();
-#    if BRIGHTNESS_PIN != 255
-    pinMode(BRIGHTNESS_PIN, OUTPUT);
-    analogWrite(BRIGHTNESS_PIN, map(100, 0, 100, 0, 255));
-#    endif
-    dsp.fillScreen(0x0000);
-    uint16_t cx = dsp.width() / 2;
-    uint16_t cy = dsp.height() / 2;
-    dsp.setTextSize(2);
-    dsp.setTextDatum(datum_t::middle_center);
-    dsp.setTextColor(0xFFFF, 0x0000);
-    dsp.drawString("LittleFS Serial Service", cx, cy - 20);
-    dsp.drawString("Maintenance mode active", cx, cy + 14);
-}
-#else
-void display_show_maintenance_screen() {}
-#endif

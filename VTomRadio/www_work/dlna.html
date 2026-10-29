@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VTom Radio - DLNA</title>
+
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="theme.css" />
+
+<style>
+  /* ---------- Layout ---------- */
+  .pagetitle { padding: 0 }
+  /* Desktop */
+  @media (min-width: 1024px) {
+    #playerwrap,
+    #settingswrap {
+      max-width: 1000px;
+      width: 100%;
+      margin: 0 auto;
+    }
+  }
+
+  /* Mobile */
+  @media (max-width: 1023px) {
+    #playerwrap,
+    #settingswrap {
+      width: 100%;
+      max-width: 100%;
+    }
+  }
+
+  .hint {
+    opacity: .75;
+    font-size: .95em;
+    margin-top: 6px;
+  }
+
+  .flex-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .hidden { display: none; }
+
+  /* ---------- DLNA dropdown blocks ---------- */
+  .dlna-block {
+    margin-top: 12px;
+  }
+
+  .dlna-wrap {
+    position: relative;
+    width: 100%;
+  }
+
+  .dlna-input {
+    cursor: pointer;
+    width: 100%;
+    font-size: 1.05em;        /* jobban olvasható */
+  }
+
+  .dlna-options {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--main-bg-color);
+    border: 2px solid var(--accent-color);
+    border-top: none;
+    max-height: 320px;        /* 220 → 320 */
+    overflow-y: auto;
+    z-index: 20;
+  }
+
+  .dlna-search {
+    width: 100%;
+    margin: 8px;
+    font-size: 1em;
+  }
+
+  .dlna-option {
+    padding: 10px 12px;       /* nagyobb kattintási terület */
+    cursor: pointer;
+    line-height: 1.25em;
+    font-size: 1.02em;
+  }
+
+  .dlna-option:hover {
+    background: var(--playlist-hover);
+  }
+
+  /* ---------- Status box ---------- */
+  #dlnaStatus {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--section-border);
+    border-radius: 10px;
+    background: rgba(255,255,255,0.03);
+    word-break: break-word;
+  }
+
+  #dlnaStatusWrap { position: relative; }
+  #dlnaStatusWrap #dlnaStatus { padding-right: 48px; }
+  #dlnaClear {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    right: 8px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 8px;
+    color: var(--accent-color);
+    z-index: 2;
+  }
+  #dlnaClear:hover { background: var(--playlist-hover); }
+
+  /* ---------- Action buttons ---------- */
+  .btnrow {
+    justify-content: space-between;
+  }
+
+  .btnrow .fb {
+    min-width: 220px;        /* 180 → 220 */
+    padding: 12px 16px;
+    text-align: center;
+    font-size: 1.05em;
+  }
+
+  /* ---------- monospace ---------- */
+  .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco,
+                 Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.95em;
+  }
+
+/* ==== FINAL MOBILE OVERFLOW FIX ==== */
+@media (max-width: 600px) {
+
+  .dlna-options {
+    left: 0;
+    right: 0;
+    box-sizing: border-box;
+  }
+
+  .dlna-search {
+    width: calc(100% - 16px);
+    margin: 8px;
+    box-sizing: border-box;
+  }
+
+  #dlnaStatus {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .btnrow {
+    flex-wrap: nowrap;
+  }
+
+  .btnrow .fb {
+    flex: 1 1 0;
+    min-width: 0;
+    margin-left: 0;
+    padding: 8px 6px;
+    font-size: 15px;
+    box-sizing: border-box;
+  }
+
+  html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+}
+
+</style>
+
+</head>
+
+<body>
+<div id="playerwrap" class="classchange">
+  <div id="logo" class="ls"></div>
+  <h2 class="pagetitle">DLNA browser</h2>
+
+  <div id="settingswrap">
+    <div id="settingscontent">
+
+      <!-- CATEGORY -->
+      <section class="group">
+        <div class="title"><span>1) Category</span></div>
+        <div class="hint">
+          This list shows <b>root children</b> under your DLNA Music folder (dlnaIDX).
+        </div>
+
+        <div class="dlna-block">
+          <div class="dlna-wrap" id="catWrap">
+            <input id="catInput" class="pleinput dlna-input" type="text" placeholder="Select category…" readonly />
+            <div id="catOptions" class="dlna-options hidden">
+              <input id="catSearch" class="pleinput dlna-search" type="text" placeholder="Search category…" autocomplete="off" />
+              <div id="catList"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ITEMS -->
+      <section class="group">
+        <div class="title"><span>2) Items</span></div>
+        <div class="hint">
+          This list shows the <b>content</b> of the selected category (containers/items). Selecting an item will <b>only build + preview</b> (no mode switch).
+        </div>
+
+        <div class="dlna-block">
+          <div class="dlna-wrap" id="itemWrap">
+            <input id="itemInput" class="pleinput dlna-input" type="text" placeholder="Select item…" readonly />
+            <div id="itemOptions" class="dlna-options hidden">
+              <input id="itemSearch" class="pleinput dlna-search" type="text" placeholder="Search item…" autocomplete="off" />
+              <div id="selBar" class="hidden" style="position:sticky;top:0;background:var(--main-bg-color);z-index:2;border-bottom:1px solid var(--section-border)">
+                <div id="selToggle" class="dlna-option" onclick="event.stopPropagation();toggleSelectAll()"></div>
+                <div id="selBuild" class="dlna-option hidden" onclick="event.stopPropagation();runSelectedJob('build')"></div>
+                <div id="selAppend" class="dlna-option hidden" onclick="event.stopPropagation();runSelectedJob('append')"></div>
+              </div>              <div id="itemList"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="dlnaStatusWrap">
+          <div id="dlnaStatus">Initializing…</div>
+          <div id="dlnaClear" title="Delete DLNA playlist" role="button" aria-label="Delete DLNA playlist">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
+            </svg>
+          </div>
+        </div>
+      </section>
+
+      <!-- PLAYLIST ACTIONS -->
+      <section class="group">
+        <div class="title"><span>Playlist actions</span></div>
+        <div class="flex-row btnrow" style="gap:10px;">
+          <div class="fb local group_system" id="usedlna">Use DLNA</div>
+          <div class="fb group_system" id="useweb">Use Webradio</div>
+        </div>
+
+        <div class="hint">
+          Behavior matches SD switching:
+          <b>if playing</b> → starts automatically after switch,
+          <b>if stopped</b> → only switches source.
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <div class="fb done group group_system" id="settingsdone">Back</div>
+
+  <div id="copy">powered by <a target="_blank" href="https://github.com/VaraiTamas/VTomRadio.git">VTom Radio</a><span id="version"></span></div>
+</div>
+
+<script src="variables.js"></script>
+<script>
+/* ========= DLNA hierarchical browser (CLEAN & SAFE) ========= */
+
+const hostname = location.host;
+
+// Kilépéskor az összes futó kérés megszakad, hogy az ESP szabad kapcsolatot adjon a főoldalnak.
+// Minden kérésnek van időkorlátja is, így egy elakadt kapcsolat nem blokkolhatja végleg a felületet.
+const navAbort = new AbortController();
+const origFetch = window.fetch.bind(window);
+window.fetch = (u, o = {}) => {
+  const { timeout = 15000, ...opts } = o;
+  const ctl = new AbortController();
+  const onNav = () => ctl.abort();
+  if (navAbort.signal.aborted) ctl.abort();
+  else navAbort.signal.addEventListener("abort", onNav, { once: true });
+  const timer = setTimeout(() => ctl.abort(), timeout);
+  return origFetch(u, { ...opts, signal: ctl.signal }).finally(() => {
+    clearTimeout(timer);
+    navAbort.signal.removeEventListener("abort", onNav);
+  });
+};
+function goHome() {
+  navAbort.abort();
+  location.href = "/";
+}
+
+const versionEl = document.getElementById("version");
+if (versionEl && typeof fwVersion !== 'undefined') versionEl.innerText = ` | v${fwVersion}`;
+let categories = [];
+let items = [];
+let buildBusy = false;
+let dlnaHasBuiltPlaylist = false;
+
+let selectedCatId = null;
+let selectedCatTitle = null;
+
+let dlnaNavStack = [];   // [{id, title}]
+
+function navCurrent() { return dlnaNavStack.length ? dlnaNavStack[dlnaNavStack.length - 1] : null; }
+function navCanBack() { return dlnaNavStack.length > 1; }
+
+function qs(id){ return document.getElementById(id); }
+
+/* ---------- helpers ---------- */
+
+function escapeHtml(s){
+  return String(s)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll("\"","&quot;")
+    .replaceAll("'","&#39;");
+}
+
+function setStatus(html){
+  const el = qs("dlnaStatus");
+  if (el) el.innerHTML = html;
+}
+
+function openDropdown(optionsEl, searchEl, renderFn){
+  optionsEl.classList.remove("hidden");
+  fitDropdownHeight(optionsEl);
+  searchEl.value = "";
+  renderFn("");
+  searchEl.focus();
+}
+
+// A lenyíló lista a Back gombig nyúlik le
+function fitDropdownHeight(optionsEl){
+  const back = qs("settingsdone");
+  const top = optionsEl.getBoundingClientRect().top;
+  const mobile = window.matchMedia("(max-width: 600px)").matches;
+  const backTop = back ? back.getBoundingClientRect().top : window.innerHeight;
+  // Telefonon a lista a Back gombig nyúlik, akkor is, ha az a látható terület alatt van
+  const bottom = mobile ? backTop : Math.min(backTop, window.innerHeight);
+  optionsEl.style.boxSizing = "border-box";
+  const gap = mobile ? 6 : 32;
+  optionsEl.style.maxHeight = Math.max(220, Math.floor(bottom - top - gap)) + "px";
+}
+window.addEventListener("resize", () => {
+  document.querySelectorAll(".dlna-options:not(.hidden)").forEach(fitDropdownHeight);
+});
+
+function closeAllDropdowns(){
+  qs("catOptions")?.classList.add("hidden");
+  qs("itemOptions")?.classList.add("hidden");
+}
+
+document.addEventListener("click", closeAllDropdowns);
+
+/* ---------- CATEGORY ---------- */
+
+function renderCategoryOptions(filter=""){
+  const wrap = qs("catList");
+  wrap.innerHTML = "";
+
+  const f = filter.toLowerCase();
+  const list = f ? categories.filter(x => x.title.toLowerCase().includes(f)) : categories;
+
+  if (!list.length) {
+    wrap.innerHTML = `<div class="dlna-option" style="opacity:.6">${categories.length ? "No matches" : "Loading categories…"}</div>`;
+    return;
+  }
+
+  list.forEach(c => {
+    const d = document.createElement("div");
+    d.className = "dlna-option";
+    d.textContent = c.title;
+    d.onclick = async e => {
+      e.stopPropagation();
+      qs("catOptions").classList.add("hidden");
+      selectedCatId = c.id;
+      selectedCatTitle = c.title;
+      qs("catInput").value = c.title;
+      await dlnaNavigateTo(c.id, c.title, true); // resetStack=true -> ez lesz a "gyökér"
+    };
+    wrap.appendChild(d);
+  });
+}
+
+/* ---------- ITEMS ---------- */
+
+function renderItemOptions(){
+  const wrap = qs("itemList");
+  wrap.innerHTML = "";
+
+  if (!items.length) {
+    wrap.innerHTML = `<div class="dlna-option" style="opacity:.6">Empty</div>`;
+    updateSelBar();
+    return;
+  }
+
+  items.forEach(it => {
+    const d = document.createElement("div");
+    d.className = "dlna-option";
+    d.dataset.type = it.type;
+    if (it.type === "track") d.dataset.id = it.id;
+    d.textContent = it.title;
+
+    d.onclick = async e => {
+      e.stopPropagation();
+
+      if (it.type === "track") {
+        // A kijelölés közben a lista nyitva marad
+        if (e.target.tagName !== "INPUT") {
+          const cb = d.querySelector("input");
+          cb.checked = !cb.checked;
+        }
+        setTrackSelected(it, d.querySelector("input").checked);
+        return;
+      }
+
+      qs("itemOptions").classList.add("hidden");
+
+      if (it.type === "back") {
+        await dlnaBack();
+        return;
+      }
+
+      if (it.type === "root") {
+        await dlnaToRoot();
+        return;
+      }
+
+      if (it.type === "container") {
+        await dlnaNavigateTo(it.id, it.title.replace(/^📁\s*/, ""), false);
+        return;
+      }
+
+      if (it.type === "info") {
+        alert("There are no tracks in this container.");
+        return;
+      }
+    };
+
+    if (it.type === "track") {
+      d.textContent = "";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = selectedTracks.has(it.id);
+      cb.style.marginRight = "10px";
+      d.appendChild(cb);
+      d.appendChild(document.createTextNode(it.title));
+    }
+
+    wrap.appendChild(d);
+  });
+  updateSelBar();
+}
+
+/* ---------- Track selection ---------- */
+const selectedTracks = new Map();   // id -> {title, url}
+
+function setTrackSelected(it, on) {
+  if (on) selectedTracks.set(it.id, { title: it.rawTitle, url: it.url });
+  else selectedTracks.delete(it.id);
+  updateSelBar();
+}
+
+function updateSelBar() {
+  const n = selectedTracks.size;
+  const hasTracks = items.some(x => x.type === "track");
+  qs("selBar").classList.toggle("hidden", !hasTracks);
+  qs("selToggle").textContent = n ? `☑ Clear selection (${n})` : "☐ Select all (visible)";
+  qs("selBuild").classList.toggle("hidden", !n);
+  qs("selAppend").classList.toggle("hidden", !n);
+  qs("selBuild").textContent = `▶ Build from selected (${n})`;
+  qs("selAppend").textContent = `➕ Append selected (${n})`;
+}
+
+function toggleSelectAll() {
+  const clear = selectedTracks.size > 0;
+  document.querySelectorAll('#itemList > [data-type="track"]').forEach(row => {
+    if (!clear && row.style.display === "none") return;
+    const cb = row.querySelector("input");
+    cb.checked = !clear;
+  });
+  if (clear) selectedTracks.clear();
+  else items.filter(x => x.type === "track").forEach(it => {
+    const row = [...document.querySelectorAll('#itemList > [data-type="track"]')].find(r => r.dataset.id === it.id);
+    if (row && row.style.display !== "none") selectedTracks.set(it.id, { title: it.rawTitle, url: it.url });
+  });
+  updateSelBar();
+}
+
+async function runSelectedJob(mode) {
+  if (!selectedTracks.size) return;
+  const body = [...selectedTracks.values()]
+    .map(t => `${t.title.replace(/[\t\r\n]+/g, " ")}\t${t.url}`).join("\n");
+  qs("itemOptions").classList.add("hidden");
+  await runDlnaJob(mode, null, mode === "build" ? "Building DLNA playlist" : "Appending DLNA playlist", body);
+}
+
+/* ---------- PREVIEW ---------- */
+
+let lastPlaylistVer = 0;
+
+async function loadBuiltDlnaCsv(ver){
+  const r = await fetch(`/data/playlist_dlna.csv?v=${ver}&_=${Date.now()}`, { cache: "no-store" });
+  const text = await r.text();
+
+  const lines = text.split(/\r?\n/).filter(Boolean);
+  const html = lines.slice(0,200).map(l => {
+    const [t] = l.split("\t");
+    return `<div class="dlna-option">${escapeHtml(t)}</div>`;
+  }).join("");
+
+  setStatus(
+    `DLNA playlist built: <b>${lines.length}</b> tracks<br>` +
+    `<span class="hint">Press <b>Use DLNA</b> to activate</span>` +
+    `<div style="margin-top:10px; max-height:320px; overflow:auto">${html}</div>`
+  );
+}
+
+/* ---------- Search ----------- */
+function filterDlnaItems(query) {
+  query = query.toLowerCase().trim();
+
+  document.querySelectorAll('#itemList > *').forEach(el => {
+    const text = el.textContent.toLowerCase();
+    el.style.display = text.includes(query) ? '' : 'none';
+  });
+}
+
+
+const itemSearch = document.getElementById('itemSearch');
+
+if (itemSearch) {
+  itemSearch.addEventListener('input', () => {
+    filterDlnaItems(itemSearch.value);
+  });
+
+  itemSearch.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      itemSearch.value = '';
+      filterDlnaItems('');
+    }
+  });
+}
+
+function resetItemFilter() {
+  const itemSearch = document.getElementById('itemSearch');
+  if (!itemSearch) return;
+
+  itemSearch.value = '';
+  filterDlnaItems('');
+}
+
+/* ---------- BACKEND ---------- */
+
+async function tryLoadExistingDlnaPlaylist() {
+  try {
+    const r = await fetch('/data/playlist_dlna.csv', { cache: 'no-store' });
+    if (!r.ok) return false;
+
+    const text = await r.text();
+    if (!text.trim()) return false;
+
+    dlnaHasBuiltPlaylist = true;
+
+    const lines = text.split(/\r?\n/).filter(Boolean);
+    const html = lines.slice(0,200).map(l => {
+      const [t] = l.split("\t");
+      return `<div class="dlna-option">${escapeHtml(t)}</div>`;
+    }).join("");
+
+    setStatus(
+      `DLNA playlist restored: <b>${lines.length}</b> tracks<br>` +
+      `<span class="hint">Press <b>Use DLNA</b> to activate</span>` +
+      `<div style="margin-top:10px; max-height:320px; overflow:auto">${html}</div>`
+    );
+
+    return true;
+  } catch(e) {
+    console.warn("[DLNA] restore failed", e);
+    return false;
+  }
+}
+
+async function loadCategories(){
+  // 1) próbáljuk visszatölteni a meglévő DLNA playlistet (DLNA nélkül is működik)
+  const restored = await tryLoadExistingDlnaPlaylist();
+
+  // 2) ha nem volt mit visszatölteni, akkor mutassuk az init állapotot
+  if (!restored) setStatus("Initializing DLNA…");
+
+  // 3) DLNA init (munkahelyen nincs → timeout/hibakezelés kell)
+  let st = { ok:false };
+  for (let attempt = 0; attempt < 3 && !st.ok; attempt++) {
+    try {
+      const ir = await fetch(`/dlna/init?${Date.now()}`, { cache: "no-store" });
+      if (ir.status === 429) { await new Promise(r => setTimeout(r, 1000)); }
+    } catch (e) { /* újrapróbáljuk */ }
+    await new Promise(r => setTimeout(r, 300));
+    st = await waitDlnaJobDone(null, 30000);   // inithez nincs reqId
+    if (st.ok && st.msg !== "init ok") st = { ok:false };   // régi job állapota, nem az init
+  }
+  if (!st.ok) {
+    // ha volt restored playlist, akkor hagyjuk a preview-t, csak jelezzük konzolon
+    if (restored) {
+      alert("DLNA not available.\n\nThe previously built playlist is still available, but browsing is disabled.");
+      return;
+    }
+    setStatus("DLNA not available");
+    return;
+  }
+
+  let j = null;
+  try {
+    const fr = await fetch(`/data/dlna_index.json?_=${Date.now()}`, { cache: "no-store" });
+    if (fr.ok) j = await fr.json();
+  } catch (e) { /* tartalék: list */ }
+  if (!j || !(j.items || []).length) {
+    try {
+      j = (await waitDlnaReady(30000)).json;
+    } catch (e) {
+      setStatus("DLNA categories could not be loaded");
+      return;
+    }
+  }
+  categories = (j.items || [])
+    .map(x => ({ id:String(x.id), title:String(x.title) }))
+    .sort((a,b)=>a.title.localeCompare(b.title));
+
+  renderCategoryOptions("");
+
+  if (!restored) {
+    setStatus("Select a DLNA category");
+  }
+}
+
+async function loadItemsForCategory(objectId){
+  await dlnaNavigateTo(objectId, selectedCatTitle || "", true);
+}
+
+let dlnaLoadSeq = 0;
+
+async function loadMoreDlnaItems(reset=false){
+  setStatus("Loading…");
+
+  // gyors egymás utáni navigációnál csak a legutolsó betöltés számít
+  const seq = ++dlnaLoadSeq;
+  const res = await dlnaListFetch(dlnaCurrentObjectId, dlnaPageStart, 20000, () => seq !== dlnaLoadSeq);
+  if (seq !== dlnaLoadSeq) return;
+  if (!res.ok) {
+    setStatus(`DLNA list failed (${res.status})`);
+    return;
+  }
+  const j = res.json;
+
+  dlnaTotal = j.total || 0;
+
+  const list = j.items || [];
+  const containers = list.filter(x => x.type === "container");
+  const tracks     = list.filter(x => x.type === "item");
+
+  if (reset) {
+    items = [];
+    selectedTracks.clear();
+    // ⬅ Back / ⤒ Root
+    if (navCanBack()) {
+      items.push({ type: "back", title: "⬅ Back" });
+      items.push({ type: "root", title: "⤒ Back to category root" });
+    }
+    
+    if (tracks.length === 0) {
+      items.push({ type:"info", title:"ℹ️ No tracks here (only folders)" });
+    }
+  }
+
+  containers.forEach(c => {
+    items.push({
+      type: "container",
+      id: c.id,
+      title: "📁 " + c.title
+    });
+  });
+
+  tracks.forEach(t => {
+    items.push({
+      type: "track",
+      id: t.id,
+      rawTitle: t.title,
+      url: t.url || "",
+      title: "🎵 " + t.title
+    });
+  });
+
+  dlnaPageStart += list.length;
+
+  // Further pages are loaded automatically while scrolling (see the scroll listener below)
+  const optionsBox = qs("itemOptions");
+  const prevScroll = optionsBox.scrollTop;
+  renderItemOptions();
+  if (reset) {
+    resetItemFilter();
+  } else {
+    filterDlnaItems(qs("itemSearch").value);
+    optionsBox.scrollTop = prevScroll;
+  }
+  
+  const path = dlnaNavStack.map(x => x.title).filter(Boolean).join(" / ");
+
+  setStatus(
+    `📍 <b>${escapeHtml(path || "DLNA")}</b><br>` +
+    `Showing <b>${dlnaPageStart}</b> of <b>${dlnaTotal}</b>`
+  );
+
+}
+
+/* ---------- NAVIGATION ---------- */
+async function dlnaLoadCurrentFromStack() {
+  const cur = navCurrent();
+  if (!cur) return;
+
+  dlnaCurrentObjectId = cur.id;
+  dlnaPageStart = 0;
+  dlnaTotal = 0;
+  items = [];
+
+  setStatus("Loading…");
+  await loadMoreDlnaItems(true);
+  resetItemFilter();
+}
+
+async function dlnaNavigateTo(objectId, title, resetStack = false) {
+  if (buildBusy) { setStatus("Another DLNA operation is still running, please wait…"); return; }
+
+  if (resetStack) dlnaNavStack = [];
+  dlnaNavStack.push({ id: String(objectId), title: String(title || "") });
+
+  await dlnaLoadCurrentFromStack();
+}
+
+async function dlnaBack() {
+  if (!navCanBack()) return;
+  dlnaNavStack.pop();
+  await dlnaLoadCurrentFromStack();
+}
+
+async function dlnaToRoot() {
+  if (dlnaNavStack.length <= 1) return;
+  dlnaNavStack = [dlnaNavStack[0]];
+  await dlnaLoadCurrentFromStack();
+}
+
+
+async function runDlnaJob(kind, objectId, label, selBody = null){
+  if (buildBusy) { setStatus("Another DLNA operation is still running, please wait…"); return; }
+  buildBusy = true;
+
+  setStatus(`${label}…`);
+
+  try {
+    let scanStart = 0;
+    let st;
+    while (true) {
+      const url = selBody !== null
+        ? `/dlna/sel?mode=${kind}`
+        : `/dlna/${kind}?objectId=${encodeURIComponent(objectId)}` + (scanStart ? `&scanStart=${scanStart}` : "");
+      const opts = selBody !== null
+        ? { method: "POST", cache: "no-store", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: selBody }
+        : { cache: "no-store" };
+
+      // 429: az ESP még foglalt (pl. előző lista/böngészés), röviden újrapróbáljuk
+      let r = null;
+      for (let attempt = 0; attempt < 10; attempt++) {
+        r = await fetch(url, opts);
+        if (r.status !== 429) break;
+        setStatus(`${label}… waiting for the ESP (${attempt + 1})`);
+        await new Promise(res => setTimeout(res, 700));
+      }
+      if (!r.ok) { setStatus(`DLNA ${kind} failed (HTTP ${r.status})`); return; }
+
+      const jr = await r.json();
+      st = await waitDlnaJobDone(jr.reqId, 30000, (s) => {
+        if (s.msg) setStatus(escapeHtml(s.msg));
+      });
+
+      // 423: a keresés szünetel, a felhasználó dönt a folytatásról
+      if (st.err === 423 && st.scanNext > 0) {
+        const more = confirm(`${st.msg}\n\nContinue scanning from ${st.scanNext}/${st.scanTotal}?`);
+        if (!more) { setStatus("DLNA scan stopped by user"); return; }
+        scanStart = st.scanNext;
+        continue;
+      }
+      break;
+    }
+
+    if (!st.ok) { setStatus(`DLNA ${kind} failed: ${escapeHtml(st.msg || "error")}`); return; }
+
+    dlnaHasBuiltPlaylist = true;
+    try {
+      await loadBuiltDlnaCsv(st.playlistVer);
+    } catch (e) {
+      setStatus(`DLNA ${kind} done on the ESP, but the preview could not be loaded. Press <b>Use DLNA pl</b> to continue.`);
+    }
+
+  } catch(e) {
+    console.error(`[DLNA] ${kind} error:`, e);
+    setStatus(e && e.name === "AbortError" ? `DLNA ${kind}: the ESP did not respond in time` : `DLNA ${kind} connection lost`);
+  } finally {
+    buildBusy = false;
+  }
+}
+
+// timeoutMs: ennyi ideig nem változó státuszüzenet után adja fel (a haladás újraindítja)
+async function waitDlnaJobDone(reqId = null, timeoutMs = 30000, onProgress = null) {
+  let t0 = Date.now();
+  let lastMsg = null;
+
+  let failures = 0;
+
+  while (Date.now() - t0 < timeoutMs) {
+    let s;
+    try {
+      const r = await fetch(`/dlna/status?_=${Date.now()}`, { cache: "no-store", timeout: 8000 });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      s = await r.json();
+      failures = 0;
+    } catch(e) {
+      // az ESP munka közben lassan válaszolhat, ezért néhány hibát tolerálunk
+      if (++failures >= 8) return { ok:false, msg:"DLNA status unreachable" };
+      await new Promise(res => setTimeout(res, 800));
+      continue;
+    }
+
+    // ha reqId-t várunk, de másik job állapotát látjuk → várunk tovább
+    if (reqId && s.reqId && String(s.reqId) !== String(reqId)) {
+      await new Promise(res => setTimeout(res, 250));
+      continue;
+    }
+
+    if (!s.busy) return s;
+
+    if (s.msg !== lastMsg) {
+      lastMsg = s.msg;
+      t0 = Date.now();
+      if (onProgress) onProgress(s);
+    }
+
+    await new Promise(res => setTimeout(res, 400));
+  }
+
+  return { ok:false, msg:"timeout" };
+}
+
+// A lista a worker taskban készül: /dlna/list -> reqId, majd /dlna/listresult polling
+async function dlnaListFetch(objectId, start = 0, timeoutMs = 20000, isStale = () => false) {
+  const t0 = Date.now();
+  let reqId = null;
+
+  while (Date.now() - t0 < timeoutMs) {
+    if (isStale()) return { ok:false, status:0 };
+    const r = await fetch(
+      `/dlna/list?objectId=${encodeURIComponent(objectId)}&start=${start}&_=${Date.now()}`,
+      { cache: "no-store" }
+    );
+    if (r.status === 429 || r.status === 503) { await new Promise(res => setTimeout(res, 500)); continue; }
+    if (r.status !== 202) return { ok:false, status:r.status };
+    reqId = (await r.json()).reqId;
+    break;
+  }
+  if (reqId === null) return { ok:false, status:429 };
+
+  while (Date.now() - t0 < timeoutMs) {
+    await new Promise(res => setTimeout(res, 250));
+    if (isStale()) return { ok:false, status:0 };
+    const r = await fetch(`/dlna/listresult?reqId=${reqId}&_=${Date.now()}`, { cache: "no-store" });
+    if (r.status === 202) continue;
+    if (!r.ok) return { ok:false, status:r.status };
+    return { ok:true, status:200, json: await r.json() };
+  }
+  return { ok:false, status:408 };
+}
+
+async function waitDlnaReady(timeoutMs = 30000) {
+  const t0 = Date.now();
+
+  while (Date.now() - t0 < timeoutMs) {
+    const res = await dlnaListFetch("21", 0, 20000);
+    if (res.ok && (res.json.items || []).length) return res;
+
+    // 503 → még nem kész
+    await new Promise(res => setTimeout(res, 800));
+  }
+
+  throw new Error("DLNA not ready");
+}
+
+/* ---------- WIRING ---------- */
+
+qs("catInput").onclick = e => {
+  e.stopPropagation();
+  openDropdown(qs("catOptions"), qs("catSearch"), renderCategoryOptions);
+};
+
+qs("catSearch").oninput = e => renderCategoryOptions(e.target.value);
+
+let dlnaAutoLoading = false;
+qs("itemOptions").addEventListener("scroll", async e => {
+  const box = e.currentTarget;
+  if (dlnaAutoLoading || buildBusy || dlnaPageStart >= dlnaTotal) return;
+  if (box.scrollTop + box.clientHeight < box.scrollHeight - 80) return;
+  dlnaAutoLoading = true;
+  try {
+    await loadMoreDlnaItems(false);
+  } finally {
+    dlnaAutoLoading = false;
+  }
+});
+
+qs("itemInput").onclick = e => {
+  e.stopPropagation();
+  if (!selectedCatId) return alert("Select category first");
+  openDropdown(qs("itemOptions"), qs("itemSearch"), renderItemOptions);
+};
+
+qs("usedlna").onclick = async () => {
+  if (!dlnaHasBuiltPlaylist) {
+    alert("No DLNA playlist built");
+    return;
+  }
+  await fetch("/playlist/dlna");
+  setTimeout(()=>location.href="/", 300);
+};
+
+qs("useweb").onclick = async () => {
+  await fetch("/playlist/web");
+  setTimeout(()=>location.href="/", 300);
+};
+
+qs("settingsdone").onclick = goHome;
+
+qs("dlnaClear").onclick = async e => {
+  e.stopPropagation();
+  if (buildBusy) { setStatus("Another DLNA operation is still running, please wait…"); return; }
+  if (!confirm("Delete the DLNA playlist?\n\nIf it is the active list, the radio switches back to the Web playlist.")) return;
+
+  buildBusy = true;
+  try {
+    const r = await fetch("/dlna/clear", { cache: "no-store" });
+    if (!r.ok) { setStatus(r.status === 429 ? "ESP is busy, try again in a moment" : `Delete failed (HTTP ${r.status})`); return; }
+    dlnaHasBuiltPlaylist = false;
+    setStatus("DLNA playlist deleted. Browse a folder, select tracks and press <b>Build from selected</b>.");
+  } catch (err) {
+    setStatus("Delete failed: the ESP did not respond");
+  } finally {
+    buildBusy = false;
+  }
+};
+
+/* ---------- INIT ---------- */
+loadCategories();
+</script>
+</body>
+</html>

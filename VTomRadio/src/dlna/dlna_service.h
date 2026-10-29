@@ -14,6 +14,6 @@ void dlna_service_begin();
 uint32_t dlna_next_reqId();
 bool dlna_isBusy();
 
-extern String g_dlnaControlUrl;
+String dlnaGetControlUrl();
 
 #endif // USE_DLNA

@@ -6,6 +6,7 @@
 
 #include "player.h"
 #include "display.h"
+#include "inputselect.h"
 #include "network.h"
 #include "netserver.h"
 #include "driver/rtc_io.h"
@@ -212,6 +213,12 @@ void encodersLoop(myEncoder* enc, bool first) {
     if (display.mode() == LOST) { return; }
     int8_t delta = enc->encoderChanged();
     if (delta == 0) { return; }
+#    if !defined(DUMMYDISPLAY) || defined(USE_NEXTION)
+    if (display.mode() == INPUTSELECT) {
+        display.moveInputSelect(delta);
+        return;
+    }
+#    endif
 #    if defined(DUMMYDISPLAY) && !defined(USE_NEXTION)
     // ===== Dummy display =====
     uint8_t btnState = digitalRead(first ? ENC_BTNB : ENC2_BTNB);
@@ -253,7 +260,8 @@ void encodersLoop(myEncoder* enc, bool first) {
             else if (p > cs)
                 p = 1;
             display.currentPlItem = p;
-            display.resetQueue();
+            // putRequest() already coalesces pending DRAWPLAYLIST entries; a full resetQueue()
+            // here would also drop unrelated queued updates (mode/title/IP) on every encoder tick.
             display.putRequest(DRAWPLAYLIST, p);
             config.screensaverTicks = 0;
         }
@@ -664,12 +672,13 @@ void controlsEvent(bool toRight, int8_t volDelta) {
         }
     }
     if (display.mode() == STATIONS) {
-        display.resetQueue();
         int      p = toRight ? display.currentPlItem + 1 : display.currentPlItem - 1;
         uint16_t cs = config.playlistLength();
         if (p < 1) p = cs;
         if (p > cs) p = 1;
         display.currentPlItem = p;
+        // putRequest() already coalesces pending DRAWPLAYLIST entries; a full resetQueue()
+        // here would also drop unrelated queued updates (mode/title/IP) on every step.
         display.putRequest(DRAWPLAYLIST, p);
     }
 }
@@ -680,6 +689,12 @@ void onBtnClick(int id) {
     pm.on_btn_click(btnid);
     if (network.status != CONNECTED && network.status != SDREADY && (controlEvt_e)id != EVT_BTNMODE && !passBnCenter) return;
     registerUserActivity();
+    if (display.mode() == INPUTSELECT) {
+        display.inputSelectIndex = inputSelect_normalizeSelection(display.inputSelectIndex);
+        config.selectInput(static_cast<inputSource_e>(display.inputSelectIndex));
+        display.putRequest(NEWMODE, PLAYER);
+        return;
+    }
     switch (btnid) {
         case EVT_BTNLEFT: {
             controlsEvent(false);
@@ -735,7 +750,7 @@ void onBtnClick(int id) {
         }
 #ifdef USE_SD
         case EVT_BTNMODE: {
-            config.changeMode();
+            config.changeMode();  // <--- Itt történik az üzemmód váltása
             break;
         }
 #endif
@@ -744,6 +759,10 @@ void onBtnClick(int id) {
 }
 
 void onBtnDoubleClick(int id) {
+    if (display.mode() == INPUTSELECT) {
+        display.putRequest(NEWMODE, PLAYER);
+        return;
+    }
     if (display.mode() == SCREENSAVER || display.mode() == SCREENBLANK) {
         display.putRequest(NEWMODE, PLAYER);
         return;
@@ -757,8 +776,12 @@ void onBtnDoubleClick(int id) {
         }
         case EVT_BTNCENTER:
         case EVT_ENCBTNB:
-        case EVT_ENC2BTNB: {
+        case EVT_ENC2BTNB: {  // <--- A 2. encoder gombja (EVT_ENC2BTNB)
+#ifndef DUMMYDISPLAY
+            display.putRequest(NEWMODE, INPUTSELECT);
+#else
             onBtnClick(EVT_BTNMODE);
+#endif
             break;
         }
         case EVT_BTNRIGHT: {

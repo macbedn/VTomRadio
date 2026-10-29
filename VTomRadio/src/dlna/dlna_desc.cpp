@@ -13,74 +13,75 @@ bool DlnaDescription::resolveControlURL(const String& descUrl, String& outContro
   WiFiClient client;
 
   Serial.printf("[DLNA] GET %s\n", descUrl.c_str());
-  
-   DlnaHttpGuard lock;
-  
-  if (!http.begin(client, descUrl)) {
-    Serial.println("[DLNA] HTTP begin failed");
-    return false;
-  }
-
-  int code = http.GET();
-  if (code != HTTP_CODE_OK) {
-    Serial.printf("[DLNA] HTTP error: %d\n", code);
-    http.end();
-    return false;
-  }
 
   String controlPath;
-  bool ok = parseStream(*http.getStreamPtr(), controlPath);
-  http.end();
+  {
+    DlnaHttpGuard lock;
+    if (!lock.ok) {
+      Serial.println("[DLNA] HTTP mutex timeout");
+      return false;
+    }
 
-  if (!ok) {
-    Serial.println("[DLNA] ContentDirectory not found");
-    return false;
+    HTTPClient http;
+    WiFiClient client;
+    http.setConnectTimeout(2500);
+    http.setTimeout(3000);
+
+    if (!http.begin(client, descUrl)) {
+      Serial.println("[DLNA] HTTP begin failed");
+      return false;
+    }
+
+    int code = http.GET();
+    if (code != HTTP_CODE_OK) {
+      Serial.printf("[DLNA] HTTP error: %d\n", code);
+      http.end();
+      return false;
+    }
+
+    // Teljes body: a stream.available() alapú olvasás TCP szegmentálásnál idő előtt kilépett
+    String body = http.getString();
+    http.end();
+
+    if (!parseBody(body, controlPath)) {
+      Serial.println("[DLNA] ContentDirectory not found");
+      return false;
+    }
   }
 
-  String base = extractBaseUrl(descUrl);
-  outControlUrl = base + controlPath;
+  if (controlPath.startsWith("http://") || controlPath.startsWith("https://")) {
+    outControlUrl = controlPath;
+  } else {
+    if (!controlPath.startsWith("/")) controlPath = "/" + controlPath;
+    outControlUrl = extractBaseUrl(descUrl) + controlPath;
+  }
 
   return true;
 }
 
-bool DlnaDescription::parseStream(Stream& s, String& outControlPath) {
-  bool inService = false;
-  bool isContentDir = false;
+// Sortörés-független: a ContentDirectory service blokkját keresi meg
+bool DlnaDescription::parseBody(const String& body, String& outControlPath) {
+  int pos = 0;
+  while (true) {
+    int s1 = body.indexOf("<service>", pos);
+    if (s1 < 0) return false;
+    int s2 = body.indexOf("</service>", s1);
+    if (s2 < 0) return false;
+    pos = s2 + 10;
 
-  String line;
-  while (s.available()) {
-    line = s.readStringUntil('\n');
-    line.trim();
+    String blk = body.substring(s1, s2);
+    if (blk.indexOf(":service:ContentDirectory:") < 0) continue;
 
-    if (line.indexOf("<service>") >= 0) {
-      inService = true;
-      isContentDir = false;
-    }
+    int a = blk.indexOf("<controlURL>");
+    int b = blk.indexOf("</controlURL>");
+    if (a < 0 || b <= a) continue;
 
-    // EXAKT serviceType ellenőrzés
-    if (inService &&
-        line.indexOf("<serviceType>urn:schemas-upnp-org:service:ContentDirectory:1</serviceType>") >= 0) {
-      isContentDir = true;
-    }
-
-    if (inService && isContentDir &&
-        line.indexOf("<controlURL>") >= 0) {
-      int a = line.indexOf("<controlURL>") + 12;
-      int b = line.indexOf("</controlURL>");
-      if (b > a) {
-        outControlPath = line.substring(a, b);
-        outControlPath.trim();
-        return true;
-      }
-    }
-
-    if (line.indexOf("</service>") >= 0) {
-      inService = false;
-      isContentDir = false;
-    }
+    outControlPath = blk.substring(a + 12, b);
+    outControlPath.trim();
+    return outControlPath.length() > 0;
   }
-  return false;
 }
+
 
 String DlnaDescription::extractBaseUrl(const String& fullUrl) {
   // http://IP:PORT/desc/device.xml → http://IP:PORT

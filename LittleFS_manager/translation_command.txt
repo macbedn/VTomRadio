@@ -1,0 +1,2 @@
+
+py -m PyInstaller --onefile --windowed --icon=icon.ico --version-file=version_info.txt --name "LittleFS-SPIFFS_Partition_Manager_WiFi_v0.6.0" LittleFS-SPIFFS_Partition_Manager_v0.6.0_wifi.py

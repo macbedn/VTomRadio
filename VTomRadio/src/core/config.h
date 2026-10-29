@@ -43,7 +43,9 @@
 #    define ESP_ARDUINO_3 1
 #endif
 
-#define CONFIG_VERSION 4
+#define CONFIG_VERSION 6
+
+enum inputSource_e : uint8_t;
 
 enum playMode_e : uint8_t { // DLNA mod
     PM_WEB = 0,
@@ -75,6 +77,7 @@ struct theme_t {
     uint16_t vumax;
     uint16_t vumid;
     uint16_t vumin;
+    uint16_t vupeak;
     uint16_t vulrbox;
     uint16_t vulrtext;
     /*----- CLOCK, DATE -----*/
@@ -110,6 +113,7 @@ struct theme_t {
     uint16_t prst_button;
     uint16_t prst_accent;
     uint16_t prst_fav;
+    uint16_t prst_fav_inactive;
     uint16_t prst_title1;
     uint16_t prst_title2;
     uint16_t prst_title3;
@@ -212,8 +216,8 @@ struct config_t {
     bool    clockFontMono;
     bool    clockAmPmStyle;
     bool    rssiAsText;
-    bool    serialLittlefsEnabled;
     int8_t  volumeCurveDb[21]; // step 1..21, dB values in range -60..0
+    int8_t  wifiMinRssi;
 };
 #if IR_PIN != 255
 struct IRCommand {
@@ -284,6 +288,7 @@ class Config {
     char          tmpBuf2[BUFLEN];
     char          ipBuf[16];
     char          _stationBuf[BUFLEN / 2];
+    bool          pendingSmartStart; // Zászló a Smart Start indítási szándék jelzésére
 
   public:
     Config() {};
@@ -323,7 +328,8 @@ class Config {
     bool    saveWifi();
     void    setTimeConf();
     bool    saveWifiFromNextion(const char* post);
-    void    setSmartStart(uint8_t ss);
+    bool    isSmartStartEnabled() const { return store.smartstart == 1; }
+    void    setSmartStartEnabled(bool enabled);
     void    setVuBidirectional(bool val);
     void    setBitrateFormat(BitrateFormat fmt) { configFmt = fmt; }
     void    initPlaylist();
@@ -336,6 +342,7 @@ class Config {
 #endif
     void     initSDPlaylist();
     void     changeMode(int newmode = -1);
+    bool     selectInput(inputSource_e source);
     uint16_t playlistLength();
     uint16_t lastStation() {
 #ifdef USE_SD
@@ -372,6 +379,13 @@ class Config {
     void     doSleepW();
     void     setSnuffle(bool sn);
     uint8_t  getMode() { return store.play_mode /* & 0b11*/; }
+    bool     isDlnaMode() {
+#ifdef USE_DLNA
+        return getMode() == PM_WEB && store.playlistSource == PL_SRC_DLNA;
+#else
+        return false;
+#endif
+    }
     void     initPlaylistMode();
     void     reset();
     void     enableScreensaver(bool val);

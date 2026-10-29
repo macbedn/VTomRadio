@@ -34,6 +34,7 @@
 #define COLOR_VU_MAX            255,  14,  14
 #define COLOR_VU_MID            255, 255,   0
 #define COLOR_VU_MIN             44, 212,  32
+#define COLOR_VU_PEAK           255, 255, 255
 #define COLOR_VU_LRBOX          125, 125, 125
 #define COLOR_VU_LRTEXT         255, 255, 255
 
@@ -88,6 +89,7 @@
 #define COLOR_PRST_CARD              14,  21,  30
 #define COLOR_PRST_ACCENT             0,  32,  66
 #define COLOR_PRST_FAV               41, 255,  76
+#define COLOR_PRST_FAV_INACTIVE     150, 150, 150
 #define COLOR_PRST_TITLE_1          255, 255, 255
 #define COLOR_PRST_TITLE_2          153, 153, 153
 #define COLOR_PRST_TITLE_3          150, 150, 150

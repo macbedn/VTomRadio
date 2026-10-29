@@ -5,7 +5,6 @@
 
 DspCore::DspCore() {}
 void DspCore::initDisplay() {
-    Serial.printf("displayST7796.cpp: initDisplay()\n");
 
 #if TS_MODEL == TS_MODEL_XPT2046
     // Kényszerítsük a Touch-ot, hogy engedje el az SPI buszt (XPT2046 only)
@@ -33,7 +32,7 @@ void DspCore::initDisplay() {
     fillScreen(0x0000);
     invert();
     flip();
-    Serial.printf("displayST7796.cpp: initDisplay() DONE\n");
+  // Serial.printf("displayST7796.cpp: initDisplay() DONE\n");
 }
 
 void DspCore::clearDsp(bool black) {
@@ -60,9 +59,9 @@ void DspCore::sleep(void) {
 }
 
 void DspCore::wake(void) {
-    writeCommand(ST7796_DISPON);
-    delay(150);
     writeCommand(ST7796_SLPOUT);
+    delay(150);
+    writeCommand(ST7796_DISPON);
     delay(150);
 }
 

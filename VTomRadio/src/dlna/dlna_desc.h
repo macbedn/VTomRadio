@@ -7,6 +7,6 @@ public:
   bool resolveControlURL(const String& descUrl, String& outControlUrl);
 
 private:
-  bool parseStream(Stream& s, String& outControlPath);
+  bool parseBody(const String& body, String& outControlPath);
   String extractBaseUrl(const String& fullUrl);
 };

@@ -9,7 +9,25 @@
 #include "../core/network.h"
 #include "../core/player.h"
 
-String g_dlnaControlUrl;
+static char s_controlUrl[192] = {0};
+static portMUX_TYPE s_controlUrlMux = portMUX_INITIALIZER_UNLOCKED;
+
+// Szálbiztos: a puffer másolása spinlock alatt, a String építése azon kívül
+String dlnaGetControlUrl() {
+  char tmp[sizeof(s_controlUrl)];
+  portENTER_CRITICAL(&s_controlUrlMux);
+  memcpy(tmp, s_controlUrl, sizeof(tmp));
+  portEXIT_CRITICAL(&s_controlUrlMux);
+  return String(tmp);
+}
+
+static void dlnaSetControlUrl(const char* url) {
+  char tmp[sizeof(s_controlUrl)];
+  strlcpy(tmp, url ? url : "", sizeof(tmp));
+  portENTER_CRITICAL(&s_controlUrlMux);
+  memcpy(s_controlUrl, tmp, sizeof(tmp));
+  portEXIT_CRITICAL(&s_controlUrlMux);
+}
 
 static bool s_serviceStarted = false;
 static uint32_t s_reqId = 1;
@@ -18,7 +36,7 @@ bool g_dlnaReady = false;
 bool dlnaInit(const String& rootObjectId, String& err) {
 
   g_dlnaReady = false;
-  g_dlnaControlUrl = "";
+  // A régi control URL megmarad az újrainicializálás végéig, így a böngészés közben nem lesz átmenetileg "not initialized" (503)
 
   player.sendCommand({PR_STOP, 0});
 
@@ -67,7 +85,7 @@ bool dlnaInit(const String& rootObjectId, String& err) {
   // biztos yield a végén is
   vTaskDelay(1);
 
-  g_dlnaControlUrl = controlUrl;
+  dlnaSetControlUrl(controlUrl.c_str());
   g_dlnaReady = true;
 
   return true;

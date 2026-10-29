@@ -12,13 +12,12 @@
 #include "controls.h"
 #include "commandhandler.h"
 #include "timekeeper.h"
+#include "fs_api_http.h"
 #include "../displays/widgets/widgetsconfig.h"
 
 #ifdef USE_DLNA  //DLNA mod
   #include "../dlna/dlna_index.h"
   #include "../dlna/dlna_service.h"
-
-static SemaphoreHandle_t g_dlnaListRouteMux = nullptr;
 #endif
 
 #if DSP_MODEL == DSP_DUMMY
@@ -235,7 +234,7 @@ static bool shouldRedirectEmptyFsRequest(AsyncWebServerRequest *request) {
 
 static bool hasRequiredWebboardFiles() {
   const char *requiredWebFiles[] = {
-    "dragpl.js", "ir.css", "irrecord.html", "ir.js", "logo.svg", "options.html", "player.html", "script.js", "style.css", "updform.html", "theme.css", "theme-editor.html", "volcurve.html"
+    "dragpl.js", "ir.css", "irrecord.html", "ir.js", "logo.svg", "options.html", "player.html", "script.js", "style.css", "updform.html", "theme.css", "theme-editor.html", "volcurve.html", "wifiset.html"
   };
   const char *requiredFonts[] = {
     "roboto9.vlw", "roboto12.vlw", "roboto16.vlw", "roboto18.vlw", "roboto20.vlw", "roboto22.vlw", "roboto24.vlw", "roboto26.vlw", "roboto36.vlw"
@@ -417,11 +416,11 @@ bool NetServer::begin(bool quiet) {
   }
 
   webserver.on("/", HTTP_ANY, handleIndex);
+  fs_api_http::register_routes(webserver);
   webserver.onNotFound(handleNotFound);
   webserver.onFileUpload(handleUpload);
 //DLNA mod
 #ifdef USE_DLNA
-  extern String g_dlnaControlUrl;
 
   /* ================= DLNA INIT ================= */
   webserver.on("/dlna/init", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -441,7 +440,12 @@ bool NetServer::begin(bool quiet) {
     j.type = DJ_INIT;
     j.reqId = dlna_next_reqId();
 
-    dlna_worker_enqueue(j);
+    dlna_status_setBusy(j, "queued");
+    if (!dlna_worker_enqueue(j)) {
+      dlna_status_setDone(j, false, 503, "queue full");
+      request->send(503, "application/json", "{\"queued\":false,\"busy\":true}");
+      return;
+    }
 
     request->send(202, "application/json", "{\"queued\":true}");
   });
@@ -453,44 +457,54 @@ bool NetServer::begin(bool quiet) {
       return;
     }
 
-    if (!g_dlnaControlUrl.length()) {
+    if (!dlnaGetControlUrl().length()) {
       request->send(503, "application/json", "{\"ok\":false,\"error\":\"DLNA not initialized\"}");
       return;
     }
 
-    if (!g_dlnaListRouteMux) {
-      g_dlnaListRouteMux = xSemaphoreCreateMutex();
-    }
-    if (!g_dlnaListRouteMux || xSemaphoreTake(g_dlnaListRouteMux, pdMS_TO_TICKS(250)) != pdTRUE) {
-      request->send(429, "application/json", "{\"ok\":false,\"error\":\"DLNA list busy\"}");
-      return;
-    }
-
     if (dlna_isBusy()) {
-      xSemaphoreGive(g_dlnaListRouteMux);
       request->send(429, "application/json", "{\"ok\":false,\"error\":\"DLNA worker busy\"}");
       return;
     }
 
     String objectId = request->getParam("objectId")->value();
     uint32_t start = request->hasParam("start") ? request->getParam("start")->value().toInt() : 0;
-    String controlUrl = g_dlnaControlUrl;
+    uint32_t reqId = dlna_next_reqId();
 
+    // A böngészés a worker taskban fut; az eredményt a /dlna/listresult adja
+    if (!dlna_list_submit(objectId.c_str(), start, reqId)) {
+      request->send(429, "application/json", "{\"ok\":false,\"error\":\"DLNA list busy\"}");
+      return;
+    }
+
+    char buf[64];
+    snprintf(buf, sizeof(buf), "{\"queued\":true,\"reqId\":%u}", (unsigned)reqId);
+    request->send(202, "application/json", buf);
+  });
+
+  /* ================= DLNA LIST RESULT ================= */
+  webserver.on("/dlna/listresult", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (!request->hasParam("reqId")) {
+      request->send(400, "application/json", "{\"ok\":false,\"error\":\"Missing reqId\"}");
+      return;
+    }
+
+    uint32_t reqId = request->getParam("reqId")->value().toInt();
     String json;
+    int rc = dlna_list_result(reqId, json);
 
-    DlnaIndex idx;
-    bool ok = idx.listContainer(controlUrl, objectId, json, start);
-
-    if (!ok) {
-      xSemaphoreGive(g_dlnaListRouteMux);
-      request->send(500, "application/json", "{\"ok\":false,\"error\":\"Browse failed\"}");
+    if (rc == 0) {
+      request->send(202, "application/json", "{\"pending\":true}");
+      return;
+    }
+    if (rc < 0) {
+      request->send(rc == -2 ? 404 : 500, "application/json", "{\"ok\":false,\"error\":\"Browse failed\"}");
       return;
     }
 
     AsyncWebServerResponse *r = request->beginResponse(200, "application/json", json);
     r->addHeader("Cache-Control", "no-store");
     request->send(r);
-    xSemaphoreGive(g_dlnaListRouteMux);
   });
 
   /* ================= DLNA BUILD ================= */
@@ -513,11 +527,15 @@ bool NetServer::begin(bool quiet) {
     strlcpy(j.objectId, request->getParam("objectId")->value().c_str(), sizeof(j.objectId));
     j.reqId = dlna_next_reqId();
     j.hardLimit = request->hasParam("limit") ? request->getParam("limit")->value().toInt() : 20000;
+    j.start = request->hasParam("scanStart") ? request->getParam("scanStart")->value().toInt() : 0;
 
-    dlna_worker_enqueue(j);
-    char buf[96];
-    snprintf(buf, sizeof(buf), "{\"queued\":true,\"reqId\":%u}", (unsigned)j.reqId);
-    request->send(202, "application/json", "{\"queued\":true}");
+    dlna_status_setBusy(j, "queued");
+    if (!dlna_worker_enqueue(j)) {
+      dlna_status_setDone(j, false, 503, "queue full");
+      request->send(503, "application/json", "{\"queued\":false,\"busy\":true}");
+      return;
+    }
+    request->send(202, "application/json", String("{\"queued\":true,\"reqId\":") + j.reqId + "}");
   });
 
   /* ================= DLNA APPEND ================= */
@@ -540,11 +558,92 @@ bool NetServer::begin(bool quiet) {
     strlcpy(j.objectId, request->getParam("objectId")->value().c_str(), sizeof(j.objectId));
     j.reqId = dlna_next_reqId();
     j.hardLimit = request->hasParam("limit") ? request->getParam("limit")->value().toInt() : 20000;
+    j.start = request->hasParam("scanStart") ? request->getParam("scanStart")->value().toInt() : 0;
 
-    dlna_worker_enqueue(j);
-    char buf[96];
-    snprintf(buf, sizeof(buf), "{\"queued\":true,\"reqId\":%u}", (unsigned)j.reqId);
-    request->send(202, "application/json", "{\"queued\":true}");
+    dlna_status_setBusy(j, "queued");
+    if (!dlna_worker_enqueue(j)) {
+      dlna_status_setDone(j, false, 503, "queue full");
+      request->send(503, "application/json", "{\"queued\":false,\"busy\":true}");
+      return;
+    }
+    request->send(202, "application/json", String("{\"queued\":true,\"reqId\":") + j.reqId + "}");
+  });
+
+  /* ================= DLNA SELECTED TRACKS (build/append) ================= */
+  webserver.on(
+    "/dlna/sel", HTTP_POST,
+    [](AsyncWebServerRequest *request) {
+      const String mode = request->hasParam("mode") ? request->getParam("mode")->value() : String("");
+      if (mode != "build" && mode != "append") {
+        request->send(400, "application/json", "{\"queued\":false,\"error\":\"bad mode\"}");
+        return;
+      }
+      if (dlna_isBusy()) {
+        request->send(429, "application/json", "{\"queued\":false,\"busy\":true}");
+        return;
+      }
+      if (dlna_sel_overflow()) {
+        request->send(413, "application/json", "{\"queued\":false,\"error\":\"selection too large\"}");
+        return;
+      }
+      if (dlna_sel_empty()) {
+        request->send(400, "application/json", "{\"queued\":false,\"error\":\"empty selection\"}");
+        return;
+      }
+
+      DlnaJob j{};
+      j.type = (mode == "append") ? DJ_APPEND_SEL : DJ_BUILD_SEL;
+      j.reqId = dlna_next_reqId();
+
+      dlna_status_setBusy(j, "queued");
+      if (!dlna_worker_enqueue(j)) {
+        dlna_status_setDone(j, false, 503, "queue full");
+        request->send(503, "application/json", "{\"queued\":false,\"busy\":true}");
+        return;
+      }
+      request->send(202, "application/json", String("{\"queued\":true,\"reqId\":") + j.reqId + "}");
+    },
+    nullptr,
+    [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+      // Foglalt worker mellett nem írjuk át a függőben lévő kijelölést
+      if (dlna_isBusy()) return;
+      dlna_sel_chunk(data, len, index);
+    }
+  );
+
+  /* ================= DLNA CLEAR (DLNA lista törlése) ================= */
+  webserver.on("/dlna/clear", HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (dlna_isBusy()) {
+      request->send(429, "application/json", "{\"ok\":false,\"busy\":true}");
+      return;
+    }
+
+    if (config.store.playlistSource == PL_SRC_DLNA) {
+      // Az aktív lista törlése előtt visszaváltunk a web rádió listára
+      if (player.isRunning()) {
+        player.sendCommand({PR_STOP, 0});
+      }
+      config.store.playlistSource = PL_SRC_WEB;
+      config.saveValue(&config.store.playlistSource, (uint8_t)PL_SRC_WEB);
+      config.loadStation(config.lastStation());
+      if (player_on_station_change) {
+        player_on_station_change();
+      }
+    }
+
+    xSemaphoreTake(g_littlefsMux, portMAX_DELAY);
+    LittleFS.remove(PLAYLIST_DLNA_PATH);
+    LittleFS.remove(INDEX_DLNA_PATH);
+    LittleFS.remove(TMP_PATH);
+    xSemaphoreGive(g_littlefsMux);
+
+    config.store.lastDlnaStation = 1;
+    config.saveValue(&config.store.lastDlnaStation, (uint16_t)1);
+
+    netserver.requestOnChange(GETINDEX, 0);
+    netserver.requestOnChange(GETPLAYERMODE, 0);
+
+    request->send(200, "application/json", "{\"ok\":true}");
   });
 
   /* ================= DLNA STATUS ================= */
@@ -560,10 +659,11 @@ bool NetServer::begin(bool quiet) {
       Serial.println("[DLNA] Build completed → reset index to 1");
     }
 
-    char buf[256];
+    char buf[288];
     snprintf(
-      buf, sizeof(buf), "{\"busy\":%s,\"ok\":%s,\"err\":%d,\"reqId\":%u,\"playlistVer\":%u,\"msg\":\"%s\"}", g_dlnaStatus.busy ? "true" : "false",
-      g_dlnaStatus.ok ? "true" : "false", g_dlnaStatus.err, (unsigned)g_dlnaStatus.reqId, (unsigned)g_dlnaStatus.playlistVer, g_dlnaStatus.msg
+      buf, sizeof(buf), "{\"busy\":%s,\"ok\":%s,\"err\":%d,\"reqId\":%u,\"playlistVer\":%u,\"scanNext\":%u,\"scanTotal\":%u,\"msg\":\"%s\"}",
+      g_dlnaStatus.busy ? "true" : "false", g_dlnaStatus.ok ? "true" : "false", g_dlnaStatus.err, (unsigned)g_dlnaStatus.reqId,
+      (unsigned)g_dlnaStatus.playlistVer, (unsigned)g_dlnaStatus.scanNext, (unsigned)g_dlnaStatus.scanTotal, g_dlnaStatus.msg
     );
 
     // Cache OFF a statusra
@@ -579,6 +679,13 @@ bool NetServer::begin(bool quiet) {
     config.store.playlistSource = PL_SRC_DLNA;
     config.saveValue(&config.store.playlistSource, (uint8_t)PL_SRC_DLNA);
 
+    if (player.isRunning()) {
+      player.sendCommand({PR_STOP, 0});
+    }
+
+    // A lista közben változhatott (build/append/szerkesztés), az index legyen friss
+    config.indexDLNAPlaylist();
+
   #ifdef USE_SD
     if (config.getMode() == PM_SDCARD) {
       config.changeMode(PM_WEB);
@@ -592,7 +699,6 @@ bool NetServer::begin(bool quiet) {
 
       if (player_on_station_change)
         player_on_station_change();
-      netserver.requestOnChange(GETINDEX, 0);
     }
 
     if (resume) {
@@ -616,6 +722,10 @@ bool NetServer::begin(bool quiet) {
     config.store.playlistSource = PL_SRC_WEB;
     config.saveValue(&config.store.playlistSource, (uint8_t)PL_SRC_WEB);
 
+    if (player.isRunning()) {
+      player.sendCommand({PR_STOP, 0});
+    }
+
     if (config.getMode() != PM_WEB) {
       config.changeMode(PM_WEB);
     } else {
@@ -625,7 +735,6 @@ bool NetServer::begin(bool quiet) {
       if (player_on_station_change) {
         player_on_station_change();
       }
-      netserver.requestOnChange(GETINDEX, 0);
     }
 
     if (resume) {
@@ -825,6 +934,11 @@ bool NetServer::begin(bool quiet) {
     response->addHeader("Cache-Control", "max-age=31536000");
     request->send(response);
   });
+  webserver.on("/wifiset", HTTP_GET, [](AsyncWebServerRequest *request) {
+    AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", index_html);
+    response->addHeader("Cache-Control", "max-age=31536000");
+    request->send(response);
+  });
 
 #if IR_PIN != 255
   webserver.on("/ircodes.csv", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -980,6 +1094,9 @@ size_t NetServer::chunkedHtmlPageCallback(uint8_t *buffer, size_t maxLen, size_t
     requiredfile = LittleFS.open(netserver.chunkedPathBuffer, "r");
   }
   if (!requiredfile) {
+#ifndef NETSERVER_LOOP1
+    display.unlock();
+#endif
     return 0;
   }
   size_t filesize = requiredfile.size();
@@ -1011,9 +1128,19 @@ void NetServer::chunkedHtmlPage(const String &contentType, AsyncWebServerRequest
   AsyncWebServerResponse *response;
 #ifndef NETSERVER_LOOP1
   display.lock();
+  // Guarantee the lock is released even if the client aborts/disconnects mid-transfer,
+  // since the chunked callback may then never be called again to reach its normal EOF unlock.
+  request->onDisconnect([]() {
+    display.unlock();
+  });
 #endif
   response = request->beginChunkedResponse(contentType, chunkedHtmlPageCallback);
   response->addHeader("Cache-Control", "max-age=31536000");
+ #ifdef USE_DLNA
+  if (strcmp(path, PLAYLIST_DLNA_PATH) == 0) {
+    response->addHeader("Content-Disposition", "attachment; filename=\"playlist_dlna.csv\"");
+  }
+ #endif
   request->send(response);
 }
 
@@ -1061,8 +1188,8 @@ void NetServer::processQueue() {
 #endif
 #ifdef USE_DLNA  //DLNA mod
         if (config.getMode() == PM_WEB && config.store.playlistSource == PL_SRC_DLNA) {
-          config.indexDLNAPlaylist();
           config.initDLNAPlaylist();
+          getPlaylist(clientId);   // a böngésző ebből tölti újra a listát
           break;
         }
 #endif
@@ -1150,6 +1277,9 @@ void NetServer::processQueue() {
           requestOnChange(SDPOS, clientId);
           requestOnChange(SDLEN, clientId);
           requestOnChange(SDSNUFFLE, clientId);
+        } else if (config.isDlnaMode()) {
+          requestOnChange(SDPOS, clientId);
+          requestOnChange(SDLEN, clientId);
         }
         return;
         break;
@@ -1178,10 +1308,10 @@ void NetServer::processQueue() {
         int wsPos = snprintf(
           wsBuf,
           sizeof(wsBuf),
-          "{\"sst\":%d,\"aif\":%d,\"rssiastext\":%d,\"vu\":%d,\"vupeak\":%d,\"vubox\":%d,\"softr\":%d,\"vut\":%d,\"mdns\":\"%s\",\"ipaddr\":\"%s\", \"watchdog\": %d, \"stallwatchdog\": %d, \"seriallittlefs\": %d, "
+          "{\"sst\":%d,\"aif\":%d,\"rssiastext\":%d,\"vu\":%d,\"vupeak\":%d,\"vubox\":%d,\"softr\":%d,\"wifiminrssi\":%d,\"vut\":%d,\"mdns\":\"%s\",\"ipaddr\":\"%s\", \"watchdog\": %d, \"stallwatchdog\": %d, "
           "\"nameday\": %d, \"clocktts\": %d, \"clockttslang\": \"%.2s\", \"clockttsinterval\": %u, ",
-          config.store.smartstart != 2, config.store.audioinfo, config.store.rssiAsText, config.store.vumeter, config.store.vuPeak, config.store.vuBidirectional, config.store.softapdelay, config.vuRefLevel, config.store.mdnsname,
-          config.ipToStr(WiFi.localIP()), config.store.watchdog, config.store.stallWatchdog, config.store.serialLittlefsEnabled, config.store.nameday,
+          config.isSmartStartEnabled(), config.store.audioinfo, config.store.rssiAsText, config.store.vumeter, config.store.vuPeak, config.store.vuBidirectional, config.store.softapdelay, config.store.wifiMinRssi, config.vuRefLevel, config.store.mdnsname,
+          config.ipToStr(WiFi.localIP()), config.store.watchdog, config.store.stallWatchdog, config.store.nameday,
           config.store.clockTtsEnabled, config.store.clockTtsLanguage, static_cast<unsigned int>(config.store.clockTtsIntervalMinutes)
         );
         if (wsPos > 0 && static_cast<size_t>(wsPos) < sizeof(wsBuf)) {
@@ -1263,7 +1393,10 @@ void NetServer::processQueue() {
         requestOnChange(STATIONNAME, clientId);
         requestOnChange(ITEM, clientId);
         break;
-      case STATIONNAME: sprintf(wsBuf, "{\"payload\":[{\"id\":\"nameset\", \"value\": \"%s\"}]}", config.station.name); break;
+      case STATIONNAME:
+        sprintf(wsBuf, "{\"payload\":[{\"id\":\"nameset\", \"value\": \"%s\"}]}", config.station.name);
+        Serial.printf("##CLI.NAMESET#: %s\r\n", config.station.name);
+        break;
       case ITEM:        sprintf(wsBuf, "{\"current\": %d}", config.lastStation()); break;
       case TITLE:
         sprintf(wsBuf, "{\"payload\":[{\"id\":\"meta\", \"value\": \"%s\"}]}", config.station.title);
@@ -1499,7 +1632,6 @@ void NetServer::onWsMessage(void *arg, uint8_t *data, size_t len, uint8_t client
         config.store.playlistSource = PL_SRC_DLNA;
         config.saveValue(&config.store.playlistSource, (uint8_t)PL_SRC_DLNA);
 
-        config.indexDLNAPlaylist();
         config.initDLNAPlaylist();
 
         netserver.requestOnChange(GETINDEX, 0);
@@ -1546,17 +1678,22 @@ bool NetServer::importPlaylist() {
   if (!tempfile) {
     return false;
   }
+#ifdef USE_DLNA
+  const char *targetPath = config.store.playlistSource == PL_SRC_DLNA ? PLAYLIST_DLNA_PATH : PLAYLIST_PATH;
+#else
+  const char *targetPath = PLAYLIST_PATH;
+#endif
   char linePl[BUFLEN * 3];
   int sOvol;
   _readPlaylistLine(tempfile, linePl, sizeof(linePl) - 1);
   if (config.parseCSV(linePl, nsBuf, sizeof(nsBuf), nsBuf2, sizeof(nsBuf2), sOvol)) {
     tempfile.close();
-    LittleFS.rename(TMP_PATH, PLAYLIST_PATH);
+    LittleFS.rename(TMP_PATH, targetPath);
     requestOnChange(PLAYLISTSAVED, 0);
     return true;
   }
   if (config.parseJSON(linePl, nsBuf, sizeof(nsBuf), nsBuf2, sizeof(nsBuf2), sOvol)) {
-    File playlistfile = LittleFS.open(PLAYLIST_PATH, "w");
+    File playlistfile = LittleFS.open(targetPath, "w");
     snprintf(linePl, sizeof(linePl) - 1, "%s\t%s\t%d", nsBuf, nsBuf2, 0);
     playlistfile.println(linePl);
     while (tempfile.available()) {
@@ -1595,16 +1732,32 @@ void NetServer::resetQueue() {
 }
 
 void handleUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+  if (fs_api_http::handle_manager_upload_chunk(request, filename, index, data, len, final)) {
+    return;
+  }
+
   static int freeSpace = 0;
   if (request->url() == "/upload") {
     if (!index) {
       if (filename != "tempwifi.csv") {
         //player.sendCommand({PR_STOP, 0});
-        if (LittleFS.exists(PLAYLIST_PATH)) {
-          LittleFS.remove(PLAYLIST_PATH);
-        }
-        if (LittleFS.exists(INDEX_PATH)) {
-          LittleFS.remove(INDEX_PATH);
+#ifdef USE_DLNA
+        if (config.store.playlistSource == PL_SRC_DLNA) {
+          if (LittleFS.exists(PLAYLIST_DLNA_PATH)) {
+            LittleFS.remove(PLAYLIST_DLNA_PATH);
+          }
+          if (LittleFS.exists(INDEX_DLNA_PATH)) {
+            LittleFS.remove(INDEX_DLNA_PATH);
+          }
+        } else
+#endif
+        {
+          if (LittleFS.exists(PLAYLIST_PATH)) {
+            LittleFS.remove(PLAYLIST_PATH);
+          }
+          if (LittleFS.exists(INDEX_PATH)) {
+            LittleFS.remove(INDEX_PATH);
+          }
         }
         if (LittleFS.exists(PLAYLIST_SD_PATH)) {
           LittleFS.remove(PLAYLIST_SD_PATH);
@@ -1769,7 +1922,7 @@ void handleNotFound(AsyncWebServerRequest *request) {
   if (request->method() == HTTP_GET) {
     //DLNA mod
 #ifdef USE_DLNA
-    if (request->method() == HTTP_GET && request->url().startsWith("/data/dlna_")) {
+    if (request->method() == HTTP_GET && (request->url().startsWith("/data/dlna_") || request->url() == PLAYLIST_DLNA_PATH)) {
 
       String path = request->url();
       Serial.printf("[DLNA][HTTP] GET %s\n", path.c_str());
@@ -1786,7 +1939,9 @@ void handleNotFound(AsyncWebServerRequest *request) {
         type = "text/plain";
       }
 
-      request->send(LittleFS, path, type);
+      AsyncWebServerResponse *dlnaResp = request->beginResponse(LittleFS, path, type);
+      dlnaResp->addHeader("Cache-Control", "no-store");
+      request->send(dlnaResp);
       return;
     }
 #endif
@@ -1831,6 +1986,9 @@ void handleNotFound(AsyncWebServerRequest *request) {
       return;
     }  // <--post files from /data/www
     if (request->url() == "/upload") {  // <--upload playlist.csv or wifi.csv
+      if (fs_api_http::handle_manager_upload_post(request)) {
+        return;
+      }
       if (request->hasParam("plfile", true, true)) {
         netserver.importRequest = IMPL;
         request->send(200);
@@ -1868,11 +2026,12 @@ void handleNotFound(AsyncWebServerRequest *request) {
     snprintf(
       netserver.nsBuf, sizeof(netserver.nsBuf),
       "var fwVersion='%s';\n"
+      "var themeCsvVersion='%s';\n"
       "var formAction='%s';\n"
       "var playMode='%s';\n"
     "var isStaConnected=%d;\n"
       "var dlnaSupported=%d;\n",
-      FW_VERSION, (network.status == CONNECTED && !config.emptyFS) ? "webboard" : "", (network.status == CONNECTED) ? "player" : "ap",
+      FW_VERSION, THEME_CSV_VERSION, (network.status == CONNECTED && !config.emptyFS) ? "webboard" : "", (network.status == CONNECTED) ? "player" : "ap",
     (network.status == CONNECTED) ? 1 : 0,
 #ifdef USE_DLNA
       1
@@ -1887,8 +2046,8 @@ void handleNotFound(AsyncWebServerRequest *request) {
       request->send(response);
     return;
   }
-  if (strcmp(request->url().c_str(), "/settings.html") == 0 || strcmp(request->url().c_str(), "/update.html") == 0
-      || strcmp(request->url().c_str(), "/ir.html") == 0) {
+      if (strcmp(request->url().c_str(), "/settings.html") == 0 || strcmp(request->url().c_str(), "/update.html") == 0
+        || strcmp(request->url().c_str(), "/ir.html") == 0 || strcmp(request->url().c_str(), "/wifiset") == 0) {
     //request->send_P(200, "text/html", index_html);
     AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", index_html);
     response->addHeader("Cache-Control", "max-age=31536000");
@@ -1913,15 +2072,18 @@ void handleIndex(AsyncWebServerRequest *request) {
     if (request->url() == "/" && request->method() == HTTP_POST) {
       String ssid = request->hasParam("ssid", true) ? request->getParam("ssid", true)->value() : request->arg("ssid");
       String pass = request->hasParam("pass", true) ? request->getParam("pass", true)->value() : request->arg("pass");
-      if (ssid != "" && pass != "") {
+      ssid.trim();
+      pass.trim();
+      if (ssid.length() > 0) {
         netserver.nsBuf[0] = '\0';
         snprintf(netserver.nsBuf, sizeof(netserver.nsBuf), "%s\t%s", ssid.c_str(), pass.c_str());
-        request->redirect("/");
+        AsyncWebServerResponse *response = request->beginResponse(200, "text/html", "<html><head><meta http-equiv='refresh' content='10;url=/'></head><body style='background:#000;color:#4b95d6;text-align:center;padding:50px;font-family:sans-serif;'><h2>Wi-Fi saved. Restarting...</h2></body></html>");
+        response->addHeader("Connection", "close");
+        request->send(response);
         config.saveWifiFromNextion(netserver.nsBuf);
         return;
       }
       request->redirect("/");
-      ESP.restart();
       return;
     }
     Serial.print("Not Found: ");

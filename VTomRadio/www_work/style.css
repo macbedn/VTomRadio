@@ -315,7 +315,9 @@ input[type=range] {
 }
 
 #playerwrap {
+  width: 100%;
   max-width: 440px;
+  box-sizing: border-box;
   height: 100%;
   padding: 20px 20px 0 20px;
   margin: 0 auto;
@@ -324,37 +326,41 @@ input[type=range] {
 }
 
 #logow {
-  position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  gap: clamp(2px, 1.5vw, 10px);
   width: 100%;
 }
 
 #logow #logo {
   position: static;
   transform: none;
+  flex: 0 1 auto;
+  min-width: 0;
+  justify-content: center;
+}
+
+.logoside {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: clamp(2px, 1.5vw, 10px);
+}
+
+.logoside.right {
+  justify-content: flex-end;
+}
+
+#logow #logo svg {
+  max-width: 100%;
+  min-width: 0;
+}
+
+#logow>.gb {
   flex: 0 0 auto;
-}
-
-#toggleplaylist {
-  position: absolute;
-  left: 0;
-}
-
-#dlnabtn {
-  position: absolute;
-  left: 54px;
-}
-
-#searchradio {
-  position: absolute;
-  right: 54px;
-}
-
-#logow>.gb.nb.local:last-child {
-  position: absolute;
-  right: 0;
+  position: static;
 }
 
 #copy {
@@ -429,6 +435,20 @@ input[type=range] {
   fill: var(--accent-color);
 }
 
+/* Touch devices keep :hover after a tap, so do not fill these buttons */
+@media (hover: none) {
+  #pleditor .gb:hover,
+  #editplaylist:not(.active):hover,
+  #toggleplaylist:hover {
+    background-color: transparent;
+  }
+  #pleditor .gb:hover svg,
+  #editplaylist:not(.active):hover svg,
+  #toggleplaylist:hover svg {
+    stroke: var(--accent-color);
+  }
+}
+
 /* ---eof playing controls--- */
 #nameset {
   text-transform: uppercase;
@@ -442,7 +462,6 @@ input[type=range] {
 }
 
 #meta {
-  text-transform: uppercase;
   font-size: 16px;
   min-height: 19px;
   margin-bottom: 14px;
@@ -454,6 +473,14 @@ input[type=range] {
 #playernav {
   display: flex;
   justify-content: space-between;
+  gap: clamp(6px, 2vw, 12px);
+}
+
+#playernav .gb {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  height: 43px;
 }
 
 #equalizerwrap {
@@ -498,8 +525,8 @@ input[type=range] {
 
 #volslider,
 #sdslider {
-  width: 440px;
-  margin: 26px -20px 0 -20px;
+  width: 100%;
+  margin: 26px 0 0 0;
 }
 
 #sdslider {
@@ -538,12 +565,49 @@ input[type=range] {
   display: none;
 }
 
-#playernav .modeitem {
-  display: none;
+#sourcebar {
+  display: flex;
+  justify-content: space-between;
+  gap: clamp(6px, 2vw, 12px);
+  width: 100%;
+  margin: 6px 0 10px 0;
 }
 
-#playernav.sd .modeitem {
-  display: flex;
+#sourcebar .srcbtn {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  height: 38px;
+  padding: 0 10px;
+  gap: 6px;
+  box-sizing: border-box;
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--accent-color);
+}
+
+#sourcebar .srcbtn svg {
+  width: 20px;
+}
+
+#sourcebar .srcbtn:hover,
+#sourcebar .srcbtn.active {
+  color: var(--main-bg-color);
+}
+
+#sourcebar .srcbtn.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  background-color: transparent;
+  color: var(--accent-color);
+}
+
+#sourcebar .srcbtn.disabled:hover svg {
+  stroke: var(--accent-color);
+}
+
+#sourcebar .srcbtn.disabled:active {
+  top: 0;
 }
 
 #sdposvals {
@@ -559,10 +623,10 @@ input[type=range] {
   display: flex;
   width: 100%;
   height: 22px;
-  justify-content: space-around;
+  justify-content: space-between;
   align-items: center;
   font-size: 14px;
-  margin: 10px 0;
+  margin: 5px 0 10px 0;
   color: var(--main-hl-color);
 }
 
@@ -638,6 +702,79 @@ input[type=range] {
   stroke: var(--main-bg-color);
 }
 
+.wifi-credential {
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.wifi-credential .wifi-scan-button,
+.wifi-credential .wifi-eye-button {
+  flex: 0 0 37px;
+  margin-top: 20px;
+}
+
+.wifi-credential .wifi-scan-button svg,
+.wifi-credential .wifi-eye-button svg {
+  stroke: #fff;
+}
+
+.wifi-credential .wifi-eye-button.hl svg {
+  stroke: var(--accent-text-color);
+}
+
+.wifi-credential .inputwrap {
+  min-width: 0;
+}
+
+.wifi-credential .wifi-password-wrap {
+  flex: 0 1 45%;
+}
+
+.wifi-scan-results {
+  max-height: 220px;
+  overflow-y: auto;
+  border: var(--section-border) 1px solid;
+  margin: 10px 0;
+}
+
+.wifi-scan-results.hidden {
+  display: none;
+}
+
+.wifi-scan-result {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px;
+  cursor: pointer;
+}
+
+.wifi-scan-result:hover {
+  background: var(--accent-dark);
+  color: var(--accent-text-color);
+}
+
+.wifi-scan-rssi {
+  white-space: nowrap;
+}
+
+@media screen and (max-width: 480px) {
+  .wifi-credential .wifi-scan-button,
+  .wifi-credential .wifi-eye-button {
+    flex: 0 0 37px;
+    margin-left: 0;
+  }
+
+  .wifi-credential .inputwrap {
+    flex: 1 1 0;
+  }
+
+  .wifi-credential .wifi-password-wrap {
+    flex: 0 1 38%;
+    margin-left: 0;
+  }
+}
+
 #playlist {
   position: relative;
   scroll-behavior: smooth;
@@ -662,7 +799,6 @@ input[type=range] {
   flex: 1;
   font-size: 20px;
   padding: 8px 0 8px 16px;
-  text-transform: uppercase;
   word-break: break-word;
 }
 
@@ -999,6 +1135,10 @@ section .title span {
   align-items: flex-end;
   padding: 0 0 10px 0;
   box-sizing: border-box;
+}
+
+.flex-row > *:first-child {
+  margin-left: 0;
 }
 
 .flex-row.title-gap-row {

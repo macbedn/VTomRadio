@@ -553,15 +553,16 @@ void audio_id3data(const char *info) {
 }
 
 void audio_eof() {
-  //Serial.printf("mode=%d (PM_WEB=0, PM_SDCARD=1)\n", config.getMode());
-  if (!config.isClockTTS && config.getMode() == PM_SDCARD) {
+  if (config.isClockTTS) return;
+  if (config.getMode() == PM_SDCARD) {
     config.sdResumePos = 0;
     Serial.println("EOF: SD -> player.next()");
     player.next();
+    return;
   }
 
 #ifdef USE_DLNA  //DLNA mod
-  if (config.store.playlistSource == PL_SRC_DLNA) {
+  if (config.isDlnaMode()) {
     Serial.println("EOF: DLNA -> player.next()");
     player.next();
     return;

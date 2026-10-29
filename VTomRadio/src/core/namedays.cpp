@@ -15,6 +15,10 @@
   #include "../../locale/namedays/namedays_UA.h"  
 #elif NAMEDAYS_FILE == DE
   #include "../../locale/namedays/namedays_DE.h"    
+#elif NAMEDAYS_FILE == CZ
+  #include "../../locale/namedays/namedays_CZ.h"    
+#elif NAMEDAYS_FILE == SK
+  #include "../../locale/namedays/namedays_SK.h"
 #else
   #error "Unsupported NAMEDAYS_FILE"
 #endif
@@ -22,7 +26,7 @@
 // --- Rotációs változók ---
 uint32_t namedayLastRotation = 0;  // utolsó forgási idő
 uint8_t  namedayCurrentIndex = 0;  // aktuális névindex
-char     currentNamedayBuffer[30]; // puffer az aktuális névhez
+char     currentNamedayBuffer[50]; // puffer az aktuális névhez
 int      lastNamedayDay = -1;      // utolsó nap a forgatás visszaállítására
 int      lastNamedayMonth = -1;    // a rotáció visszaállításának utolsó hónapja
 

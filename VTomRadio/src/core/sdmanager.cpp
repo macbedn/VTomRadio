@@ -1,4 +1,3 @@
-//v0.9.686
 #include "options.h"
 #if SDC_CS!=255
 #include <Arduino.h>
@@ -6,7 +5,6 @@
 #include <SD.h>
 #include "vfs_api.h"
 #include "sd_diskio.h"
-//#define USE_SD
 #include "config.h"
 #include "sdmanager.h"
 #include "display.h"
@@ -37,6 +35,7 @@ bool SDManager::start(){
   Serial.printf("[SD] begin try1=%d\n", ready);
   vTaskDelay(10);
   if(!ready) {
+    digitalWrite(SDC_CS, HIGH);
     ready = begin(SDC_CS, SDREALSPI, SDSPISPEED);
     Serial.printf("[SD] begin try2=%d\n", ready);
   }
@@ -58,6 +57,8 @@ bool SDManager::start(){
 
 void SDManager::stop(){
   end();
+  // Explicitly deselect the SD card so it can't interfere with the TFT sharing the same SPI bus.
+  digitalWrite(SDC_CS, HIGH);
   ready = false;
 }
 #include "diskio_impl.h"

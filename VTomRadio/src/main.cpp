@@ -11,7 +11,6 @@
 #include "core/controls.h"
 // #include "core/mqtt.h"
 #include "driver/rtc_io.h"
-#include "core/serial_littlefs.h"
 
 #include "core/optionschecker.h"
 #include "core/timekeeper.h"
@@ -77,14 +76,6 @@ extern decode_results irResults;
 #endif
 
 static TaskHandle_t clockTtsTaskHandle = nullptr;
-static bool         serialLittlefsEnabled = true;
-
-static bool loadSerialLittlefsEnabledFromEeprom() {
-    config.eepromRead(EEPROM_START, config.store);
-    if (config.store.config_set != 0) return true;
-    if (config.store.version != CONFIG_VERSION) return true;
-    return config.store.serialLittlefsEnabled;
-}
 
 static void clockTtsTask(void* /*param*/) {
     while (true) {
@@ -134,87 +125,59 @@ static void revealDisplayBacklight(bool forceOn) {
 #endif
 }
 
-static bool serviceMaintenanceMode() {
-    if (!serialLittlefsEnabled) return false;
-    static bool maintenanceScreenShown = false;
-    serial_littlefs_poll();
-    if (!serial_littlefs_is_active()) {
-        maintenanceScreenShown = false;
-        return false;
-    }
-    if (!maintenanceScreenShown) {
-        display_show_maintenance_screen();
-        maintenanceScreenShown = true;
-    }
-    delay(2);
-    return true;
-}
-
+/*******************************************  SETUP *******************************************/
 void setup() {
-    Serial.begin(115200); //Serial.begin(460800); 
+    Serial.begin(115200);
     delay(100);
 
     EEPROM.begin(EEPROM_SIZE);
-    serial_littlefs_begin(Serial);
-    serialLittlefsEnabled = loadSerialLittlefsEnabledFromEeprom();
-    
+
 #if IR_PIN != 255
     irQueue = xQueueCreate(4, sizeof(IRCommand));
     config.eepromRead(EEPROM_START_IR, config.ircodes);
-    irWakeup(); // Megnézi, hogy jó e a kód, és ha igen, akkor ébreszti a rádiót, ha nem, akkor visszaaltatja. 
+    irWakeup(); // Megnézi, hogy jó e a kód, és ha igen, akkor ébreszti a rádiót, ha nem, akkor visszaaltatja.
 #endif
+
 #if PWR_AMP != 255 // "PWR_AMP"
     pinMode(PWR_AMP, OUTPUT);
     digitalWrite(PWR_AMP, HIGH);
 #endif
+
 #if (POWER_LED != 255) // "POWER_LED"
     pinMode(POWER_LED, OUTPUT);
     digitalWrite(POWER_LED, HIGH);
 #endif
-    if (serialLittlefsEnabled) {
-        // Boot window: ESP 4 masodpercig varja a maintenance kapcsolatot.
-        // A Python HELLO -> BEGIN kezfogassal lep be; END paranccsal vagy idle timeout
-        // utan a maintenance mod le is tud zarni, es a normal boot folytatodik.
-        {
-            uint32_t bootEnd = millis() + 4000;
-            while (millis() < bootEnd) {
-                serial_littlefs_poll();
-                if (serial_littlefs_is_active()) {
-                    display_show_maintenance_screen();
-                    while (serial_littlefs_is_active()) {
-                        serial_littlefs_poll();
-                        delay(1);
-                    }
-                    break; // END parancs vagy idle timeout utan folytatja a normal bootot
-                }
-                delay(5);
-            }
-        }
-    }
 
 #if (BRIGHTNESS_PIN != 255) // backlight plugin
     Serial.printf("Exists? %p\n", &backlightPlugin);
     backlightPluginInit();
 #endif
+
     if (REAL_LEDBUILTIN != 255) pinMode(REAL_LEDBUILTIN, OUTPUT);
     if (radio_on_setup) radio_on_setup();
+
+#if SDC_CS != 255
+    // A CS pin-t OUTPUT-ra állítjuk, és HIGH-ra húzzuk, hogy az SD kártya ne legyen aktív ideiglenesen.
+    // Ez azért fontos, mert az SD kártya és a TFT kijelző ugyanazt az SPI buszt használja, és ha az SD kártya aktív marad, akkor zavarhatja a TFT működését.
+    pinMode(SDC_CS, OUTPUT);
+    digitalWrite(SDC_CS, HIGH);
+    // Az SD kártyát itt nem inicializáljuk: az SD.begin(..., SPI, ...) a másik (FSPI) perifériára
+    // foglalná le a 11/12/13 lábakat, amit a kijelző és az SDSPI (HSPI) is használ.
+    // Az SD init az sdman.start()-ban történik az SDSPI-n, a TFT-vel közös zár (spi_t mutex) alatt.
+#endif
+
     pm.init();     // pluginsManager
     pm.on_setup(); // pluginsManager
     config.init();
-    serialLittlefsEnabled = config.store.serialLittlefsEnabled;
     display.init();
     revealDisplayBacklight(false);
-
     player.init();
     network.begin();
     if (network.status != CONNECTED && network.status != SDREADY) {
         netserver.begin();
         initControls();
         display.putRequest(DSP_START);
-        while (!display.ready()) {
-            if (serviceMaintenanceMode()) continue;
-            delay(10);
-        }
+        while (!display.ready()) { delay(10); }
         revealDisplayBacklight(true);
         return;
     }
@@ -225,29 +188,29 @@ void setup() {
     config.initPlaylistMode();
     netserver.begin();
     initControls();
-    hideDisplayBacklight();
+    hideDisplayBacklight(); // képernyő kikapcsolása
     display.putRequest(DSP_START);
-    while (!display.ready()) {
-        if (serviceMaintenanceMode()) continue;
-        delay(10);
-    }
-    revealDisplayBacklight(false);
+    while (!display.ready()) { delay(10); }
+    revealDisplayBacklight(false); // képernyő visszakapsolás fokozatosan
 #if USE_OTA
     setupOTA();
 #endif
     if (config.getMode() == PM_SDCARD) player.initHeaders(config.station.url);
     player.lockOutput = false;
-    if (config.store.smartstart == 1) { player.sendCommand({PR_PLAY, config.lastStation()}); }
     clock_tts_setup();
     startClockTtsTask();
+    // Smart Start: only mark the intent to start playback, actual start happens in the loop.
+    if (config.isSmartStartEnabled()) {
+        config.pendingSmartStart = true; // Mark the intent to start playback on cold boot
+    }
     Audio::audio_info_callback = my_audio_info; // "audio_change" audiohandlers.h ban kezelve.
     pm.on_end_setup();
 }
 
+/*******************************************  LOOP *******************************************/
 void loop() {
-    if (serviceMaintenanceMode()) return;
-
     timekeeper.loop1();
+    network.loop();
     if (network.status == CONNECTED || network.status == SDREADY) {
         player.loop();
 #if USE_OTA
@@ -258,4 +221,19 @@ void loop() {
 #ifdef NETSERVER_LOOP1
     netserver.loop();
 #endif
+// COLD BOOT SMART START:
+    if (config.pendingSmartStart) {
+        if (network.status == CONNECTED || config.getMode() == PM_SDCARD) {
+            static unsigned long netReadyMillis = 0;
+            if (netReadyMillis == 0) {
+                netReadyMillis = millis();
+            }
+            // 500mswaiting for the network/amplifier to stabilize:
+            if (millis() - netReadyMillis > 500) {
+                Serial.println("[SMART_START] Network ready, start playback...");
+                player.sendCommand({PR_PLAY, config.lastStation()});
+                config.pendingSmartStart = false; // Kikapcsoljuk a zászlót
+            }
+        }
+    }
 }

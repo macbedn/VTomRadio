@@ -1,31 +1,32 @@
   <div id="playerwrap" class="classchange">
   <div id="logow">
-    <div class="gb nb local" id="toggleplaylist" data-command="toggle" data-target="pleditorwrap">
+    <div class="logoside">
+    <div class="gb nb local" id="editplaylist" data-command="toggle" data-target="pleditorwrap">
       <svg viewBox="0 0 24 24" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" id="plsvg">
-        <path d="M3 17a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"></path>
-        <path d="M13 17a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"></path>
-        <path d="M9 17v-13h10v13"></path>
-        <path d="M9 8h10"></path>
+        <path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1"></path>
+        <path d="M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415z"></path>
+        <path d="M16 5l3 3"></path>
       </svg>
-      <svg viewBox="0 0 24 24" class="fill hidden" id="sdsvg">
-       <path d="m6 7.828v12.172h12v-16h-8.172zm-1.707-1.12 4.707-4.708h10a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1h-14a1 1 0 0 1-1-1v-13.586a1 1 0 0 1 0.293-0.707zm10.707-1.708h2v4h-2zm-3 0h2v4h-2zm-3 1h2v3h-2z"/>
+      <svg viewBox="0 0 24 24" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" class="hidden" id="editbacksvg">
+        <path d="M5 12h14"></path>
+        <path d="M5 12l6 6"></path>
+        <path d="M5 12l6 -6"></path>
       </svg>
     </div>
-  <div class="gb nb local"
-       id="dlnabtn"
-       title="DLNA playlists">
-    <svg viewBox="0 0 24 24"
-         stroke-width="1.5"
-         fill="none"
-         stroke-linecap="round"
-         stroke-linejoin="round"
-         class="stroke">
-      <rect x="3" y="4" width="18" height="12" rx="2"></rect>
-      <path d="M8 20h8"></path>
-      <path d="M12 16v4"></path>
-    </svg>
-  </div>
+    <div class="gb nb local hidden" id="toggleplaylist" data-command="toggle" data-target="sliderswap">
+      <svg viewBox="0 0 24 24" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" class="hidden" id="timelinesvg">
+        <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"></path>
+        <path d="M12 7v5l3 3"></path>
+      </svg>
+      <svg viewBox="0 0 24 24" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" class="hidden" id="soundsvg">
+        <path d="M15 8a5 5 0 0 1 0 8"></path>
+        <path d="M17.7 5a9 9 0 0 1 0 14"></path>
+        <path d="M6 15h-2a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h2l3.5 -4.5a.8 .8 0 0 1 1.5 .5v14a.8 .8 0 0 1 -1.5 .5l-3.5 -4.5"></path>
+      </svg>
+    </div>
+    </div>
     <div id="logo"></div>
+    <div class="logoside right">
     <div class="gb nb local modeweb" id="searchradio" onclick="window.location.href='search.html'">
       <svg viewBox="0 0 24 24" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
         <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"></path>
@@ -38,7 +39,36 @@
           <path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"></path>
         </svg>
     </div>
+    </div>
   </div><!--logow-->
+  <div id="sourcebar">
+    <div class="gb srcbtn local active" id="src-web" data-command="source" data-source="web" title="Web radio">
+      <svg viewBox="0 0 24 24" class="stroke">
+        <circle cx="12" cy="12" r="9"></circle>
+        <path d="M3 12h18"></path>
+        <path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0 -18"></path>
+      </svg>
+      <span>WEB</span>
+    </div>
+    <div class="gb srcbtn local hidden" id="src-sd" data-command="source" data-source="sd" title="SD card">
+      <svg viewBox="0 0 24 24" class="fill">
+        <path d="m6 7.828v12.172h12v-16h-8.172zm-1.707-1.12 4.707-4.708h10a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1h-14a1 1 0 0 1-1-1v-13.586a1 1 0 0 1 0.293-0.707zm10.707-1.708h2v4h-2zm-3 0h2v4h-2zm-3 1h2v3h-2z"/>
+      </svg>
+      <span>SD</span>
+    </div>
+    <div class="gb srcbtn local" id="src-dlna" data-command="source" data-source="dlna" title="DLNA">
+      <svg viewBox="0 0 24 24" class="fill">
+        <path d="M23.254,12.667H13.019c-1.051,0-2.1,0.489-2.692,1.266v-0.017c-0.591,0.816-1.544,1.353-2.629,1.353 c-1.796,0-3.249-1.458-3.249-3.251c0-1.795,1.454-3.251,3.249-3.251c1.085,0,2.039,0.536,2.629,1.353v-0.013 c0.592,0.776,1.641,1.273,2.692,1.273h10.129c0.186-0.005,0.873-0.095,0.848-0.981c-0.884-5.086-5.879-8.987-11.923-8.987 c-3.721,0-7.047,1.48-9.262,3.803c-0.356,0.527,0.014,0.689,0.35,0.734h6.608c1.05,0,2.1-0.498,2.691-1.277V4.69 c0.591-0.817,1.546-1.355,2.63-1.355c1.795,0,3.249,1.456,3.249,3.251c0,1.793-1.454,3.252-3.249,3.252 c-1.084,0-2.039-0.537-2.63-1.355v0.019c-0.591-0.779-1.641-1.266-2.691-1.266h-7.22l0.028,0.003c0,0-1.068-0.06-1.719,0.859 C0.361,8.9,0,10.621,0,12.002c0,1.388,0.198,2.649,0.867,3.923c0.564,0.908,1.71,0.849,1.71,0.849L2.535,16.78h7.233 c1.05,0,2.1-0.49,2.691-1.268v0.019c0.591-0.817,1.546-1.355,2.63-1.355c1.795,0,3.249,1.458,3.249,3.251 c0,1.795-1.454,3.251-3.249,3.251c-1.084,0-2.039-0.537-2.63-1.354v0.018c-0.591-0.779-1.641-1.277-2.691-1.277H3.164 c-0.328,0.042-0.698,0.198-0.379,0.699c2.216,2.337,5.555,3.824,9.288,3.824c6.054,0,11.056-3.911,11.926-9.009 C23.995,12.866,23.51,12.702,23.254,12.667"/>
+      </svg>
+      <span>DLNA</span>
+    </div>
+    <div class="gb srcbtn disabled" id="src-bt" title="Bluetooth (coming soon)">
+      <svg viewBox="0 0 24 24" class="stroke">
+        <path d="M7 8l10 8l-5 4v-16l5 4l-10 8"></path>
+      </svg>
+      <span>BT</span>
+    </div>
+  </div>
   <div>
     <div id="nameset" class="text"></div>
     <div id="meta" class="text"></div>
@@ -76,16 +106,6 @@
         <path d="M15 8a5 5 0 0 1 0 8"></path>
         <path d="M17.7 5a9 9 0 0 1 0 14"></path>
         <path d="M6 15h-2a1 1 0 0 1 -1 -1v-4a1 1 0 0 1 1 -1h2l3.5 -4.5a.8 .8 0 0 1 1.5 .5v14a.8 .8 0 0 1 -1.5 .5l-3.5 -4.5"></path>
-      </svg>
-    </div>
-    <div class="modeitem gb" data-command="sd" id="modeweb">
-      <svg viewBox="0 0 24 24" class="fill">
-       <path d="m6 7.828v12.172h12v-16h-8.172zm-1.707-1.12 4.707-4.708h10a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1h-14a1 1 0 0 1-1-1v-13.586a1 1 0 0 1 0.293-0.707zm10.707-1.708h2v4h-2zm-3 0h2v4h-2zm-3 1h2v3h-2z"/>
-      </svg>
-    </div>
-    <div class="modeitem gb hidden" data-command="web" id="modesd">
-      <svg viewBox="0 0 24 24" class="fill">
-       <path d="m9.8382 18.447c0.17206 0.3225 0.34436 0.6131 0.50906 0.8706-1.7498-0.3935-3.2682-1.3986-4.3189-2.779 0.69343-0.3905 1.5816-0.7953 2.6493-1.0915 0.30346 1.1902 0.73158 2.1955 1.1606 2.9999zm1.3236-0.7059c-0.3727-0.6987-0.7462-1.5713-1.0153-2.6052 0.5793-0.086 1.1977-0.1356 1.8536-0.1356 0.6558 0 1.2742 0.0496 1.8534 0.1355-0.2691 1.034-0.6426 1.9066-1.0153 2.6053-0.2988 0.5603-0.5965 1.0076-0.8382 1.3349-0.2417-0.3273-0.5394-0.7746-0.8382-1.3349zm-1.4118-5.7408c0 0.5841 0.0393 1.1385 0.1086 1.6619 0.6683-0.1025 1.3828-0.1619 2.1415-0.1619 0.7586 0 1.4731 0.0593 2.1413 0.1619 0.0693-0.5235 0.1086-1.0778 0.1086-1.6619s-0.0393-1.1384-0.1086-1.6619c-0.6682 0.1025-1.3827 0.1619-2.1413 0.1619-0.7587 0-1.4732-0.0594-2.1415-0.1619-0.0693 0.5234-0.1086 1.0778-0.1086 1.6619zm-1.3631-1.9712c-0.08711 0.619-0.13688 1.2766-0.13688 1.9712s0.04977 1.3522 0.13688 1.9712c-1.2735 0.3419-2.3281 0.824-3.1436 1.2879-0.47626-0.9855-0.74324-2.0911-0.74324-3.2591s0.26698-2.2736 0.74323-3.2591c0.81549 0.46384 1.8701 0.94598 3.1436 1.2879zm1.7596-1.1644c0.5793 0.08597 1.1977 0.13555 1.8536 0.13555 0.6558 0 1.2742-0.04957 1.8534-0.13553-0.2691-1.0339-0.6426-1.9065-1.0153-2.6053-0.2988-0.56026-0.5965-1.0076-0.8382-1.3349-0.2417 0.32724-0.5394 0.77462-0.8382 1.3349-0.3727 0.69873-0.7462 1.5714-1.0153 2.6053zm5.4666 1.1644c0.0871 0.619 0.1369 1.2766 0.1369 1.9711 0 0.6946-0.0498 1.3521-0.1369 1.9711 1.2735 0.342 2.3281 0.8241 3.1437 1.288 0.4762-0.9856 0.7432-2.0912 0.7432-3.2591s-0.267-2.2735-0.7432-3.2591c-0.8155 0.46384-1.8701 0.94597-3.1437 1.288zm2.3585-2.5671c-0.6935 0.39053-1.5816 0.79527-2.6492 1.0915-0.3035-1.1902-0.7316-2.1956-1.1606-3-0.1721-0.32255-0.3444-0.61307-0.5091-0.87062 1.7499 0.39353 3.2683 1.3987 4.3189 2.7791zm-9.294 1.0915c-1.0676-0.29624-1.9558-0.70098-2.6493-1.0915 1.0507-1.3804 2.5691-2.3855 4.3188-2.779-0.1646 0.25755-0.3369 0.54806-0.50897 0.8706-0.42899 0.80437-0.85711 1.8097-1.1606 3zm6.6448 6.8934c-0.3035 1.1903-0.7316 2.1956-1.1606 3-0.1721 0.3225-0.3444 0.6131-0.5091 0.8706 1.7499-0.3935 3.2683-1.3987 4.319-2.7791-0.6935-0.3905-1.5816-0.7952-2.6493-1.0915zm-3.3224 5.5533c4.9706 0 9-4.0294 9-9 0-4.9706-4.0294-9-9-9-4.9706 0-9 4.0294-9 9 0 4.9706 4.0294 9 9 9z" clip-rule="evenodd" fill-rule="evenodd"/>
       </svg>
     </div>
     <div class="gb local" id="eqalbutton" data-command="toggle" data-target="equalizerbg">
@@ -157,7 +177,7 @@
   </div><!--equalizerwrap-->
   <div id="copy">powered by <a target="_blank" href="https://github.com/VaraiTamas/VTomRadio.git">VTom Radio</a><span id="version"></span></div>
   </div><!--playerwrap-->
-  <div id="pleditorwrap" class="hidden" data-target="toggleplaylist">
+  <div id="pleditorwrap" class="hidden" data-target="editplaylist">
   <div id="pleditor">
     <h2>Playlist Editor<div class="gb local" data-command="toggle" data-target="pleditorwrap">
       <svg viewBox="0 0 24 24" class="stroke">

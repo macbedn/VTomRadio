@@ -197,3 +197,5 @@ Az infravörös led tápjára párhuzamosan kell kötni egy 10μF elektrolit és
 <a href="https://buymeacoffee.com/vtom">
     <img src="../../images/buymeacoffee.png" width="200">
 </a>
+
+### Ez a PCB verzió legyártható a [jlcpcb.com](https://jlcpcb.com/?from=AMOSWLDYVIS) oldalon a [yoradio_gerber.zip](../../PCB/PCB_2026_06_21/PCB_2026.06.21_gerber.zip)   fájl feltöltésével.     

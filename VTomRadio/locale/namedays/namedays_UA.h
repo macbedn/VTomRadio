@@ -4,7 +4,7 @@
 
 const char* nameday_label = "Іменини:"; 
 
-const char* namedays[] = {
+const char* const namedays[] = {
   // January (31)
   "",
   "",

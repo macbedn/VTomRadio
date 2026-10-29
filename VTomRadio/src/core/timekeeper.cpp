@@ -4,6 +4,7 @@
 #include "config.h"
 #include "network.h"
 #include "display.h"
+#include "inputselect.h"
 #include "player.h"
 #include "netserver.h"
 #include "rtcsupport.h"
@@ -300,6 +301,12 @@ void TimeKeeper::_returnPlayer() {
             }
         } else if (display.mode() == VOL) { // hangerő
             display.putRequest(NEWMODE, PLAYER);
+        } else if (display.mode() == INPUTSELECT) {
+            if (config.store.directChannelChange) {
+                const uint8_t selected = inputSelect_normalizeSelection(display.inputSelectIndex);
+                config.selectInput(static_cast<inputSource_e>(selected));
+            }
+            display.putRequest(NEWMODE, PLAYER);
         }
     }
 }
@@ -385,7 +392,7 @@ void TimeKeeper::_upRSSI() {
 }
 
 void TimeKeeper::_upSDPos() {
-    if (player.isRunning() && config.getMode() == PM_SDCARD) { netserver.requestOnChange(SDPOS, 0); }
+    if (player.isRunning() && (config.getMode() == PM_SDCARD || config.isDlnaMode())) { netserver.requestOnChange(SDPOS, 0); }
 }
 
 void TimeKeeper::timeTask() {

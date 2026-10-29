@@ -29,6 +29,8 @@ def should_compress(path: Path, script_name: str) -> bool:
         return False
     if path.name == script_name:
         return False
+    if path.name.lower() == "readme.md":
+        return False
     if path.name.startswith("."):
         return False
     if path.suffix.lower() in SKIP_EXTENSIONS:

@@ -343,12 +343,6 @@ bool CommandHandler::exec(const char* command, const char* value, uint8_t cid) {
         config.saveValue(&config.store.stallWatchdog, static_cast<bool>(atoi(value)));
         return true;
     }
-    if (strEquals(command, "seriallittlefs")) {
-        config.saveValue(&config.store.serialLittlefsEnabled, static_cast<bool>(atoi(value)),true, false);
-        delay(100);
-        netserver.requestOnChange(GETSYSTEM, cid);
-        return true;
-    }
     if (strEquals(command, "nameday")) {                                         // "nameday"  itt veszi át a webről a toggle értékét.
         display.putRequest(CLEARALLBITRATE);                                     // Törli mindkét bitratewidget és a nameday területet.
         config.saveValue(&config.store.nameday, static_cast<bool>(atoi(value))); // Elmenti a gomb beállítását
@@ -567,9 +561,7 @@ bool CommandHandler::exec(const char* command, const char* value, uint8_t cid) {
     }
 
     if (strEquals(command, "smartstart")) {
-        uint8_t ss = atoi(value) == 1 ? 1 : 2;
-        if (!player.isRunning() && ss == 1) { ss = 0; }
-        config.setSmartStart(ss);
+        config.setSmartStartEnabled(atoi(value) == 1);
         return true;
     }
     if (strEquals(command, "audioinfo")) {
@@ -594,6 +586,11 @@ bool CommandHandler::exec(const char* command, const char* value, uint8_t cid) {
     }
     if (strEquals(command, "softap")) {
         config.saveValue(&config.store.softapdelay, static_cast<uint8_t>(atoi(value)));
+        return true;
+    }
+    if (strEquals(command, "wifiminrssi")) {
+        const int minimumRssi = atoi(value);
+        config.saveValue(&config.store.wifiMinRssi, static_cast<int8_t>(constrain(minimumRssi, -95, -50)));
         return true;
     }
     if (strEquals(command, "mdnsname")) {

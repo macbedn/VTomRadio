@@ -78,7 +78,7 @@ void Player::init() {
   setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT, I2S_MCLK);
   #endif
 #endif
-  setBalance(-config.store.balance);  // "audio_change"   -16 to 16 fordítás 16 to -16
+  setBalance(config.store.balance);
   setTone(config.store.bass, config.store.middle, config.store.trebble);
   setVolumeSteps(21);  // Alapértelmezetten 21, ami 0-21-ig terjedő értékeket engedélyez. Ez a változtatás lehetővé teszi a finomabb hangerőszabályozást, különösen alacsonyabb hangerőszinteken.
   for (uint8_t i = 1; i <= 21; ++i) {
@@ -101,11 +101,18 @@ void Player::init() {
   Serial.println("done");
 }
 
-void Player::sendCommand(playerRequestParams_t request) {
+bool Player::sendCommand(playerRequestParams_t request) {
   if (playerQueue == NULL) {
-    return;
+    return false;
   }
-  xQueueSend(playerQueue, &request, PLQ_SEND_DELAY);
+  return xQueueSend(playerQueue, &request, PLQ_SEND_DELAY) == pdPASS;
+}
+
+bool Player::sendCommandFirst(playerRequestParams_t request) {
+  if (playerQueue == NULL) {
+    return false;
+  }
+  return xQueueSendToFront(playerQueue, &request, PLQ_SEND_DELAY) == pdPASS;
 }
 
 void Player::resetQueue() {
@@ -115,7 +122,6 @@ void Player::resetQueue() {
 }
 
 void Player::stopInfo() {
-  config.setSmartStart(0);
   netserver.requestOnChange(MODE, 0);
 }
 
@@ -241,8 +247,20 @@ void Player::loop() {
       {
         if (config.getMode() == PM_SDCARD) {
           if (!sdman.cardPresent()) {
+            // A driver "Card Failed" után tartósan NOINIT állapotba teszi a kártyát, ezért újrainicializáljuk.
+            Serial.println("[SD] card check failed, reinitializing");
             sdman.stop();
-            config.changeMode(PM_WEB);
+            vTaskDelay(50);
+            bool ok = false;
+            for (int i = 0; i < 3 && !ok; i++) {
+              ok = sdman.start() && sdman.cardPresent();
+              if (!ok) { sdman.stop(); vTaskDelay(100); }
+            }
+            if (ok) {
+              sendCommand({PR_PLAY, config.lastStation()});  // az aktuális szám újraindítása
+            } else {
+              config.changeMode(PM_WEB);
+            }
           }
         }
         break;
@@ -381,6 +399,15 @@ void Player::_play(uint16_t stationId) {
   if (config.getMode() == PM_SDCARD && SDC_CS != 255) {
     // A connecttoFS NEM támogat start offsetet SD-n → -1, indítás pozícionálás nélkül.
     isConnected = connecttoFS(sdman, config.station.url, -1);
+    if (!isConnected) {
+      // Elveszett SPI szinkron (pl. no token / crc error): kártya újrainicializálása és egy újrapróba.
+      Serial.println("[SD] open failed, reinitializing card");
+      sdman.stop();
+      vTaskDelay(50);
+      if (sdman.start()) {
+        isConnected = connecttoFS(sdman, config.station.url, -1);
+      }
+    }
   } else {
 #ifdef USE_DLNA //DLNA mod
   // DLNA is WEB engine, de nem írjuk felül a mode-ot

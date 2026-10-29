@@ -20,11 +20,11 @@
 
 /* Itt tudod beállítani a program nyelvét
    You can set the program language here.
-   Supported languages: HU NL PL RU EN GR SK DE UA ES. */
+   Supported languages: HU NL PL RU EN GR SK DE UA ES CZ. */
 #define LANGUAGE PL
 
 /* -- Névnapok megjelenítése -- Display name days --
-Supported languages: HU, PL, NL, GR, DE (UA Local/namedays/namedays_UA.h is not filled in.) */
+Supported languages: HU, PL, NL, GR, DE, CZ, SK (UA Local/namedays/namedays_UA.h is not filled in.) */
 #define NAMEDAYS_FILE PL
 
 #define USE_BUILTIN_LED false /* The RGB LED does not turn on.. */
@@ -38,15 +38,30 @@ Supported languages: HU, PL, NL, GR, DE (UA Local/namedays/namedays_UA.h is not 
 // #define HTTP_PASS ""               /* HTTP basic authentication password */
 
 /*----- LCD DISPLAY -----*/
-//#define DSP_MODEL DSP_ILI9488
-#define DSP_MODEL DSP_ST7796
-//#define DSP_MODEL DSP_ILI9341
+//#define DSP_MODEL DSP_ILI9341    // 320x240
+//#define DSP_MODEL DSP_ILI9488    // 480x320
+//#define DSP_MODEL DSP_ST7789     // 320x240
+#define DSP_MODEL DSP_ST7796       // 480x320
+
+
+
+/*----- LovyanGFX SPI bus speed -----*/
+/* Instabil kijelző, rossz vezetékelésnél használd csak. A használható értékek 24, 26, 28, 30, 32, 36 MHz */
+/* Unstable display, use only if wiring is bad. Usable values ​​are 24, 26, 28, 30, 32, 36 MHz */
+// #  define LGFX_LCD_FREQ_WRITE 24000000             // original: 40000000
+// #  define LGFX_LCD_FREQ_READ  10000000             // original: 16000000
+// #  define LGFX_TOUCH_SPI_FREQ   800000             // original: 2500000
+
+
+/*----- SCREEN ROTATION -----*/
+//#define DEFAULT_SCREEN_ROTATION 3  /* 0-3 */
 
 /*----- DISPLAY PIN SETS -----*/
 #define TFT_DC         9
 #define TFT_CS         10
 #define TFT_RST        -1
 #define BRIGHTNESS_PIN 14
+#define BRIGHTNESS_PWM_FREQ 5000
 /*
    GPIO 11 - MOSI
    GPIO 12 - CLK
@@ -62,7 +77,7 @@ Supported languages: HU, PL, NL, GR, DE (UA Local/namedays/namedays_UA.h is not 
 //#define TS_MODEL TS_MODEL_AXS15231B
 //#define TS_SCL     7
 //#define TS_SDA     8
-//#define TS_INT    17 
+//#define TS_INT    17
 //#define TS_RST     1
 
 /*----- NEXTION DISPLAY serial port -----*/
@@ -81,12 +96,14 @@ Supported languages: HU, PL, NL, GR, DE (UA Local/namedays/namedays_UA.h is not 
 //#define ENC_BTNL 42 // S1
 //#define ENC_BTNB 21 // KEY
 //#define ENC_INTERNALPULLUP	true
+//#define ENC_HALFQUARD true
 
 /*----- ENCODER 2 -----*/
 #define ENC2_BTNR 48 // S2
 #define ENC2_BTNL 47 // S1
 #define ENC2_BTNB 21 // KEY
 //#define ENC2_INTERNALPULLUP	true
+//#define ENC2_HALFQUARD       true
 
 /*----- CLOCK MODUL RTC DS3132 -----*/
 ////#define RTC_SCL			     7
@@ -111,6 +128,7 @@ Supported languages: HU, PL, NL, GR, DE (UA Local/namedays/namedays_UA.h is not 
 /*----- SD CARD -----*/
 //#define SDC_CS     18
 //#define SD_SPIPINS 12, 13, 11, SDC_CS  // SCK, MISO, MOSI, CS
+//#define SDSPISPEED 10000000
 
 /*----- Ezzel a beállítással nincs görgetés az időjárás sávon. -----*/
 /*----- With this setting there is no scrolling on the weather bar. -----*/
@@ -118,11 +136,11 @@ Supported languages: HU, PL, NL, GR, DE (UA Local/namedays/namedays_UA.h is not 
 
 /*----- Ezzel a beállítással a teljes időjárás jelentés megjelenik. -----*/
 /*----- With this setting, the full weather report is displayed. -----*/
-// #define EXT_WEATHER  true
+ #define EXT_WEATHER  true
 
 /*----- Ezzel a beállítással a szél sebessége km/h lesz. -----*/
 /*----- With this setting, the wind speed will be km/h. -----*/
-// #define WIND_SPEED_IN_KMH
+ #define WIND_SPEED_IN_KMH
 
 /*----- Az itt beállított pin vezérelheti egy audio erősítő tápellátását. Zenelejátszás közben a pin HIGH (magas) állapotban van ami meghúzza az
 erősítő tápellátását kapcsoló relét. Amikor nincs zenelejátszás (STOP vagy a hangerő 0), a pin LOW (alacsony) állapotban van.

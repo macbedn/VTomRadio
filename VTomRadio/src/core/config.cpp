@@ -112,8 +112,8 @@ void u8fix(char* src) { // Ha az utolsó tőbbájtos karakter (ékezetes) utols�
 bool Config::_isFSempty() {
     // Base names without .gz — accepts both compressed and plain uploads
     const char*   reqiredFiles[] = {"dragpl.js", "ir.css",    "irrecord.html", "ir.js",     "logo.svg",          "options.html", "player.html",
-                                    "script.js", "style.css", "updform.html",  "theme.css", "theme-editor.html", "volcurve.html"};
-    const uint8_t reqiredFilesSize = 13;
+                                    "script.js", "style.css", "updform.html",  "theme.css", "theme-editor.html", "volcurve.html", "wifiset.html"};
+    const uint8_t reqiredFilesSize = 14;
     char          fullpath[32];
     if (LittleFS.exists("/www/settings.html")) { LittleFS.remove("/www/settings.html"); }
     if (LittleFS.exists("/www/update.html")) { LittleFS.remove("/www/update.html"); }
@@ -287,7 +287,12 @@ void Config::_setupVersion() {
         case 1: saveValue(&store.encodersIndependent, false); break;
         case 2: saveValue(&store.rssiAsText, false); break;
         case 3: break;
-        case 4: saveValue(&store.serialLittlefsEnabled, true); break;
+        case 4:
+            // Schema v5 removed a legacy bool before volumeCurveDb.
+            // Reset curve defaults to avoid shifted/corrupted values after upgrade.
+            for (size_t i = 0; i < 21; ++i) { saveValue(&store.volumeCurveDb[i], kDefaultVolumeCurveDb[i], false, true); }
+            break;
+        case 5: saveValue(&store.wifiMinRssi, static_cast<int8_t>(-70)); break;
     }
     currentVersion++;
     saveValue(&store.version, currentVersion);
@@ -317,6 +322,12 @@ void Config::changeMode(int newmode) { // DLNA mod
         ESP.restart();
     }
 
+    /* === MÓDOSÍTÁS: A lejátszás MINDIG leáll váltáskor, ha épp futott ===  (SD --> WEB váltás hiba javítása) */
+    if (pir) {
+        player.sendCommand({PR_STOP, 0});
+        delay(50); // Hagyunk időt a decoder tasknak a tisztességes leállásra
+    }
+
     /* === SD only when explicitly requested === */
     if (newmode == PM_SDCARD) {
         if (!sdman.ready) {
@@ -341,7 +352,6 @@ void Config::changeMode(int newmode) { // DLNA mod
 
     /* === SD specific actions === */
     if (getMode() == PM_SDCARD) {
-        if (pir) { player.sendCommand({PR_STOP, 0}); }
         display.putRequest(NEWMODE, SDCHANGE);
         delay(50);
     } else {
@@ -354,7 +364,7 @@ void Config::changeMode(int newmode) { // DLNA mod
 
     if (pir) {
 #    ifdef USE_DLNA
-        uint16_t st = (getMode() == PM_SDCARD) ? store.lastSdStation : (store.playlistSource == PL_SRC_DLNA ? store.lastDlnaStation : store.lastStation);
+        //  uint16_t st = (getMode() == PM_SDCARD) ? store.lastSdStation : (store.playlistSource == PL_SRC_DLNA ? store.lastDlnaStation : store.lastStation);
 #    else
         uint16_t st = (getMode() == PM_SDCARD) ? store.lastSdStation : store.lastStation;
         player.sendCommand({PR_PLAY, st});
@@ -368,6 +378,105 @@ void Config::changeMode(int newmode) { // DLNA mod
     display.putRequest(NEWMODE, PLAYER);
     display.putRequest(NEWSTATION);
 #endif
+}
+
+bool Config::selectInput(inputSource_e source) {
+    if (source == INPUT_BLUETOOTH) {
+        Serial.println("[INPUT] Bluetooth is not supported yet");
+        return false;
+    }
+
+    if (source == INPUT_SD) {
+#ifndef USE_SD
+        Serial.println("[INPUT] SD input is not enabled");
+        return false;
+#else
+        if (getMode() == PM_SDCARD) {
+#ifdef USE_DLNA
+            if (store.playlistSource != PL_SRC_WEB) {
+                store.playlistSource = PL_SRC_WEB;
+                saveValue(&store.playlistSource, static_cast<uint8_t>(PL_SRC_WEB));
+            }
+#endif
+            return true;
+        }
+        const bool resume = player.isRunning();
+        changeMode(PM_SDCARD);
+        if (getMode() != PM_SDCARD) { return false; }
+#ifdef USE_DLNA
+        if (store.playlistSource != PL_SRC_WEB) {
+            store.playlistSource = PL_SRC_WEB;
+            saveValue(&store.playlistSource, static_cast<uint8_t>(PL_SRC_WEB));
+        }
+#endif
+        netserver.requestOnChange(GETPLAYERMODE, 0);
+        if (resume && !player.sendCommand({PR_PLAY, store.lastSdStation})) {
+            Serial.println("[INPUT] Failed to queue SD playback");
+            return false;
+        }
+        return true;
+#endif
+    }
+
+    if (source != INPUT_WEB && source != INPUT_DLNA) {
+        Serial.printf("[INPUT] Invalid input source: %u\n", static_cast<unsigned>(source));
+        return false;
+    }
+
+#ifdef USE_DLNA
+    const bool modeChange = getMode() != PM_WEB;
+    const bool sourceChange = !modeChange && isDlnaMode() != (source == INPUT_DLNA);
+    if (!modeChange && !sourceChange) { return true; }
+    const bool resume = player.isRunning();
+#else
+    if (source == INPUT_DLNA) {
+        Serial.println("[INPUT] DLNA support is not enabled");
+        return false;
+    }
+    const bool modeChange = getMode() != PM_WEB;
+    const bool sourceChange = false;
+    if (!modeChange) { return true; }
+    const bool resume = player.isRunning();
+#endif
+
+    if (!modeChange && sourceChange && resume) {
+        if (!player.sendCommand({PR_STOP, 0})) {
+            Serial.println("[INPUT] Failed to stop playback for source change");
+            return false;
+        }
+        delay(50);
+    }
+
+#ifdef USE_DLNA
+    if (source == INPUT_DLNA) {
+        store.playlistSource = PL_SRC_DLNA;
+        saveValue(&store.playlistSource, static_cast<uint8_t>(PL_SRC_DLNA));
+    } else
+#endif
+    {
+#ifdef USE_DLNA
+        if (store.playlistSource != PL_SRC_WEB) {
+            store.playlistSource = PL_SRC_WEB;
+            saveValue(&store.playlistSource, static_cast<uint8_t>(PL_SRC_WEB));
+        }
+#endif
+    }
+
+    if (modeChange) {
+        changeMode(PM_WEB);
+        if (getMode() != PM_WEB) { return false; }
+    } else {
+        initPlaylistMode();
+        display.putRequest(NEWSTATION);
+        netserver.requestOnChange(GETINDEX, 0);
+    }
+
+    netserver.requestOnChange(GETPLAYERMODE, 0);
+    if (resume && !player.sendCommand({PR_PLAY, lastStation()})) {
+        Serial.println("[INPUT] Failed to queue playback after source change");
+        return false;
+    }
+    return true;
 }
 
 void Config::initSDPlaylist() {
@@ -426,7 +535,6 @@ bool Config::prepareForPlaying(uint16_t stationId) {
     netserver.requestOnChange(MODE, 0);
     netserver.loop();
     netserver.loop();
-    if (store.smartstart != 2) { setSmartStart(0); }
     return true;
 }
 
@@ -443,7 +551,6 @@ void Config::configPostPlaying(uint16_t stationId) { // DLNA mod
         saveValue(&store.lastStation, stationId);
     }
 
-    if (store.smartstart != 2) { setSmartStart(1); }
     netserver.requestOnChange(MODE, 0);
     display.putRequest(PSTART);
 }
@@ -456,6 +563,8 @@ void Config::setSDpos(uint32_t val) {
         } else {
             player.setAudioFilePosition(val - player.sd_min); // futó lejátszásnál seek webről
         }
+    } else if (isDlnaMode() && player.isRunning() && val >= player.sd_min) {
+        player.setAudioFilePosition(val - player.sd_min); // DLNA fájl: HTTP Range alapú seek
     }
 }
 
@@ -515,6 +624,7 @@ void Config::_initHW() {
 #if BRIGHTNESS_PIN != 255
     gpio_hold_dis((gpio_num_t)BRIGHTNESS_PIN); // ← add (MB)
     pinMode(BRIGHTNESS_PIN, OUTPUT);
+    analogWriteFrequency(BRIGHTNESS_PIN, BRIGHTNESS_PWM_FREQ);
     // Keep backlight off during display controller init to avoid boot flash.
     analogWrite(BRIGHTNESS_PIN, 0);
 #endif
@@ -565,6 +675,7 @@ void Config::_setDefaultTheme() {
     theme.vumax = color565(COLOR_VU_MAX);
     theme.vumid = color565(COLOR_VU_MID);
     theme.vumin = color565(COLOR_VU_MIN);
+    theme.vupeak = color565(COLOR_VU_PEAK);
     theme.vulrbox = color565(COLOR_VU_LRBOX);
     theme.vulrtext = color565(COLOR_VU_LRTEXT);
     /*----- PLAYLIST WIDGET-----*/
@@ -581,6 +692,7 @@ void Config::_setDefaultTheme() {
     theme.prst_card = color565(COLOR_PRST_CARD);
     theme.prst_accent = color565(COLOR_PRST_ACCENT);
     theme.prst_fav = color565(COLOR_PRST_FAV);
+    theme.prst_fav_inactive = color565(COLOR_PRST_FAV_INACTIVE);
     theme.prst_title1 = color565(COLOR_PRST_TITLE_1);
     theme.prst_title2 = color565(COLOR_PRST_TITLE_2);
     theme.prst_title3 = color565(COLOR_PRST_TITLE_3);
@@ -643,6 +755,8 @@ bool Config::setThemeColorByName(const char* name, uint8_t r, uint8_t g, uint8_t
     SET_THEME_COLOR("vu_mid", vumid);
     SET_THEME_COLOR("vumin", vumin);
     SET_THEME_COLOR("vu_min", vumin);
+    SET_THEME_COLOR("vupeak", vupeak);
+    SET_THEME_COLOR("vu_peak", vupeak);
     SET_THEME_COLOR("vulrbox", vulrbox);
     SET_THEME_COLOR("vu_lrbox", vulrbox);
     SET_THEME_COLOR("vulrtext", vulrtext);
@@ -684,6 +798,7 @@ bool Config::setThemeColorByName(const char* name, uint8_t r, uint8_t g, uint8_t
     SET_THEME_COLOR("prst_card", prst_card);
     SET_THEME_COLOR("prst_accent", prst_accent);
     SET_THEME_COLOR("prst_fav", prst_fav);
+    SET_THEME_COLOR("prst_fav_inactive", prst_fav_inactive);
     SET_THEME_COLOR("prst_title1", prst_title1);
     SET_THEME_COLOR("prst_title2", prst_title2);
     SET_THEME_COLOR("prst_title3", prst_title3);
@@ -754,6 +869,8 @@ bool Config::getThemeColorByName(const char* name, uint16_t& color) const {
     GET_THEME_COLOR("vu_mid", vumid);
     GET_THEME_COLOR("vumin", vumin);
     GET_THEME_COLOR("vu_min", vumin);
+    GET_THEME_COLOR("vupeak", vupeak);
+    GET_THEME_COLOR("vu_peak", vupeak);
     GET_THEME_COLOR("vulrbox", vulrbox);
     GET_THEME_COLOR("vu_lrbox", vulrbox);
     GET_THEME_COLOR("vulrtext", vulrtext);
@@ -795,6 +912,7 @@ bool Config::getThemeColorByName(const char* name, uint16_t& color) const {
     GET_THEME_COLOR("prst_card", prst_card);
     GET_THEME_COLOR("prst_accent", prst_accent);
     GET_THEME_COLOR("prst_fav", prst_fav);
+    GET_THEME_COLOR("prst_fav_inactive", prst_fav_inactive);
     GET_THEME_COLOR("prst_title1", prst_title1);
     GET_THEME_COLOR("prst_title2", prst_title2);
     GET_THEME_COLOR("prst_title3", prst_title3);
@@ -923,6 +1041,7 @@ bool Config::saveThemeToFile() {
     writeColor("vumax", theme.vumax);
     writeColor("vumid", theme.vumid);
     writeColor("vumin", theme.vumin);
+    writeColor("vupeak", theme.vupeak);
     writeColor("vulrbox", theme.vulrbox);
     writeColor("vulrtext", theme.vulrtext);
     writeColor("vol_bg", theme.vol_bg);
@@ -961,6 +1080,7 @@ bool Config::saveThemeToFile() {
     writeColor("prst_card", theme.prst_card);
     writeColor("prst_accent", theme.prst_accent);
     writeColor("prst_fav", theme.prst_fav);
+    writeColor("prst_fav_inactive", theme.prst_fav_inactive);
     writeColor("prst_title1", theme.prst_title1);
     writeColor("prst_title2", theme.prst_title2);
     writeColor("prst_title3", theme.prst_title3);
@@ -1007,6 +1127,7 @@ String Config::themeToJson() const {
     appendColor("vumax", theme.vumax);
     appendColor("vumid", theme.vumid);
     appendColor("vumin", theme.vumin);
+    appendColor("vupeak", theme.vupeak);
     appendColor("vulrbox", theme.vulrbox);
     appendColor("vulrtext", theme.vulrtext);
     appendColor("vol_bg", theme.vol_bg);
@@ -1045,6 +1166,7 @@ String Config::themeToJson() const {
     appendColor("prst_card", theme.prst_card);
     appendColor("prst_accent", theme.prst_accent);
     appendColor("prst_fav", theme.prst_fav);
+    appendColor("prst_fav_inactive", theme.prst_fav_inactive);
     appendColor("prst_title1", theme.prst_title1);
     appendColor("prst_title2", theme.prst_title2);
     appendColor("prst_title3", theme.prst_title3);
@@ -1257,7 +1379,7 @@ void Config::setIrBtn(int val) {
 void Config::resetSystem(const char* val, uint8_t clientId) {
     BOOTLOG("***************** RESET SYSTEM *****************");
     if (strcmp(val, "system") == 0) {
-        saveValue(&store.smartstart, (uint8_t)2, false);
+        saveValue(&store.smartstart, (uint8_t)0, false);
         saveValue(&store.audioinfo, false, false);
         saveValue(&store.vumeter, false, false);
         saveValue(&store.vuPeak, true, false);
@@ -1266,7 +1388,6 @@ void Config::resetSystem(const char* val, uint8_t clientId) {
         saveValue(&store.softapdelay, (uint8_t)0, false);
         saveValue(&store.watchdog, true);
         saveValue(&store.stallWatchdog, true, false);
-        saveValue(&store.serialLittlefsEnabled, true, false);
         saveValue(&store.nameday, true);
         saveValue(&store.clockTtsEnabled, false, false);
         saveValue(store.clockTtsLanguage, "HU", sizeof(store.clockTtsLanguage), false);
@@ -1374,7 +1495,7 @@ void Config::setDefaults() {
     store.countStation = 0;
     store.lastSSID = 0;
     store.audioinfo = false;
-    store.smartstart = 2;
+    store.smartstart = 0;
     store.tzHour = 2;
     store.tzMin = 0;
     store.timezoneOffset = 0;
@@ -1438,7 +1559,6 @@ void Config::setDefaults() {
     store.directChannelChange = false;
     store.stationsListReturnTime = 3;
     store.stallWatchdog = true;
-    store.serialLittlefsEnabled = true;
     for (size_t i = 0; i < 21; ++i) { store.volumeCurveDb[i] = kDefaultVolumeCurveDb[i]; }
 #if TS_MODEL == TS_MODEL_FT6X36
     store.xTouchMirroring = false;
@@ -1449,6 +1569,7 @@ void Config::setDefaults() {
 #endif
 
     store.rssiAsText = false;
+    store.wifiMinRssi = -70;
     eepromWrite(EEPROM_START, store);
 }
 
@@ -1496,8 +1617,8 @@ void Config::setTone(int8_t bass, int8_t middle, int8_t trebble) {
     netserver.requestOnChange(EQUALIZER, 0);
 }
 
-void Config::setSmartStart(uint8_t ss) {
-    saveValue(&store.smartstart, ss);
+void Config::setSmartStartEnabled(bool enabled) {
+    saveValue(&store.smartstart, static_cast<uint8_t>(enabled ? 1 : 0));
 }
 
 void Config::setVuBidirectional(bool val) {
@@ -1506,7 +1627,7 @@ void Config::setVuBidirectional(bool val) {
 
 void Config::setBalance(int8_t balance) {
     saveValue(&store.balance, balance);
-    player.setBalance(-store.balance); // "audio_change"  -16 to 16 fordítás 16 to -16
+    player.setBalance(store.balance);
     netserver.requestOnChange(BALANCE, 0);
 }
 
@@ -1682,6 +1803,7 @@ bool Config::loadStation(uint16_t ls) {
         memset(station.name, 0, BUFLEN);
         strncpy(station.name, tmpBuf, BUFLEN);
         strncpy(station.url, tmpBuf2, BUFLEN);
+        Serial.printf("##PL.LOAD#: #%u pos=%lu name='%s'\n", (unsigned)ls, (unsigned long)pos, station.name);
         station.ovol = sOvol;
         setLastStation(ls);
     }
@@ -1825,19 +1947,45 @@ bool Config::parseWsCommand(const char* line, char* cmd, char* val, uint8_t cSiz
 }
 
 bool Config::parseSsid(const char* line, char* ssid, char* pass) {
-    char* tmpe;
     if (!line || !ssid || !pass) { return false; }
-    tmpe = strstr(line, "\t");
-    if (tmpe == NULL) { return false; }
-    uint16_t pos = tmpe - line;
-    if (pos > 29 || strlen(line) > 71) { return false; }
+
     memset(ssid, 0, 30);
-    size_t ssidCopyLen = (static_cast<size_t>(pos) < static_cast<size_t>(29)) ? static_cast<size_t>(pos) : static_cast<size_t>(29);
-    memcpy(ssid, line, ssidCopyLen);
-    ssid[ssidCopyLen] = '\0';
     memset(pass, 0, 40);
-    strlcpy(pass, line + pos + 1, 40);
-    return true;
+
+    const char* tmpe = strstr(line, "\t");
+    if (tmpe != NULL) {
+        uint16_t pos = tmpe - line;
+        size_t ssidCopyLen = (static_cast<size_t>(pos) < static_cast<size_t>(29)) ? static_cast<size_t>(pos) : static_cast<size_t>(29);
+        memcpy(ssid, line, ssidCopyLen);
+        ssid[ssidCopyLen] = '\0';
+        strlcpy(pass, tmpe + 1, 40);
+    } else {
+        strlcpy(ssid, line, 30);
+        pass[0] = '\0';
+    }
+
+    // Trim trailing whitespace, \r, \n, tab from pass
+    size_t plen = strlen(pass);
+    while (plen > 0 && (pass[plen - 1] == '\r' || pass[plen - 1] == '\n' || pass[plen - 1] == ' ' || pass[plen - 1] == '\t')) {
+        pass[--plen] = '\0';
+    }
+
+    // Trim trailing whitespace, \r, \n, tab from ssid
+    size_t slen = strlen(ssid);
+    while (slen > 0 && (ssid[slen - 1] == '\r' || ssid[slen - 1] == '\n' || ssid[slen - 1] == ' ' || ssid[slen - 1] == '\t')) {
+        ssid[--slen] = '\0';
+    }
+
+    // Trim leading whitespace from ssid
+    char* start = ssid;
+    while (*start == ' ' || *start == '\t') {
+        start++;
+    }
+    if (start != ssid) {
+        memmove(ssid, start, strlen(start) + 1);
+    }
+
+    return strlen(ssid) > 0;
 }
 
 bool Config::saveWifiFromNextion(const char* post) {
@@ -1847,8 +1995,11 @@ bool Config::saveWifiFromNextion(const char* post) {
         Serial.printf("[WIFI] saveWifiFromNextion: cannot open %s for write\n", SSIDS_PATH);
         return false;
     } else {
-        file.print(post);
+        file.println(post);
+        file.flush();
         file.close();
+        saveValue(&store.lastSSID, (uint8_t)1);
+        delay(500);
         ESP.restart();
         return true;
     }
@@ -1872,12 +2023,17 @@ void Config::setTimeConf() {
 }
 
 bool Config::initNetwork() {
+    ssidsCount = 0;
     File file = LittleFS.open(SSIDS_PATH, "r");
     if (!file || file.isDirectory()) { return false; }
     char    ssidval[30], passval[40];
     uint8_t c = 0;
-    while (file.available()) {
-        if (parseSsid(file.readStringUntil('\n').c_str(), ssidval, passval)) {
+    while (file.available() && c < 5) {
+        String line = file.readStringUntil('\n');
+        while (line.length() > 0 && (line[line.length() - 1] == '\r' || line[line.length() - 1] == '\n')) {
+            line.remove(line.length() - 1);
+        }
+        if (parseSsid(line.c_str(), ssidval, passval)) {
             strlcpy(ssids[c].ssid, ssidval, 30);
             strlcpy(ssids[c].password, passval, 40);
             ssidsCount++;
@@ -1885,7 +2041,7 @@ bool Config::initNetwork() {
         }
     }
     file.close();
-    return true;
+    return ssidsCount > 0;
 }
 
 void Config::setBrightness(bool dosave) {
@@ -1966,11 +2122,11 @@ void Config::doSleep() {
 }
 
 void Config::doSleepW() {
-    analogWrite(BRIGHTNESS_PIN, 0);           
-    pinMode(BRIGHTNESS_PIN, OUTPUT);          
-    digitalWrite(BRIGHTNESS_PIN, LOW);        
-    gpio_hold_en((gpio_num_t)BRIGHTNESS_PIN); 
-    gpio_deep_sleep_hold_en();                
+    analogWrite(BRIGHTNESS_PIN, 0);
+    pinMode(BRIGHTNESS_PIN, OUTPUT);
+    digitalWrite(BRIGHTNESS_PIN, LOW);
+    gpio_hold_en((gpio_num_t)BRIGHTNESS_PIN);
+    gpio_deep_sleep_hold_en();
     display.deepsleep();
 
 #ifdef USE_NEXTION
@@ -2059,11 +2215,10 @@ void Config::bootInfo() {
             (unsigned)EEPROM_SIZE);
     BOOTLOG("------------------------------------------------");
     BOOTLOG("------------- EEPROM AFTER READ ----------------");
-    BOOTLOG("fadeEnabled   : %s", store.fadeEnabled ? "true" : "false");
-    BOOTLOG("fadeStartDelay: %4s", fmtThousands(store.fadeStartDelay));
-    BOOTLOG("fadeTarget    : %4s", fmtThousands(store.fadeTarget));
-    BOOTLOG("fadeStep      : %4s", fmtThousands(store.fadeStep));
-    BOOTLOG("Serial LittleFS : %s", store.serialLittlefsEnabled ? "true" : "false");
+    BOOTLOG("fadeEnabled                      : %s", store.fadeEnabled ? "true" : "false");
+    BOOTLOG("fadeStartDelay                   : %4s", fmtThousands(store.fadeStartDelay));
+    BOOTLOG("fadeTarget                       : %4s", fmtThousands(store.fadeTarget));
+    BOOTLOG("fadeStep                         : %4s", fmtThousands(store.fadeStep));
     BOOTLOG("------------------------------------------------");
     BOOTLOG("----------------- HEAP AND PSRAM ---------------");
     BOOTLOG("Total heap : %10s byte", fmtThousands(ESP.getHeapSize()));

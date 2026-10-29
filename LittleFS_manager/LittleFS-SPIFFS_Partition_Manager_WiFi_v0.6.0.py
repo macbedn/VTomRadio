@@ -3,65 +3,34 @@
 
 from __future__ import annotations
 
-import base64
+import json
+import math
 import sys
 import threading
 import time
 import zipfile
+import http.client
+import urllib.error
+import urllib.parse
+import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog, simpledialog, ttk
 
-try:
-    import serial
-    from serial.tools import list_ports
-except Exception:
-    serial = None
-    list_ports = None
-
-<<<<<<< Updated upstream
-<<<<<<<< Updated upstream:LittleFS_manager/LittleFS-SPIFFS_Partition_Manager_v0.4.py
-APP_VERSION = "0.4"
-========
-APP_VERSION = "0.3.4-estimated-fs"
->>>>>>>> Stashed changes:LittleFS_manager/LittleFS-SPIFFS_Partition_Manager_v0.3.4.py
-=======
-APP_VERSION = "0.4"
->>>>>>> Stashed changes
-DEFAULT_BAUDRATE = 460800
-# Upload tuning:
-# 96 bytes is the old proven-safe mode, but it is extremely slow because every chunk
-# waits for an ACK. 192 bytes keeps the serial line short enough for typical ESP32
-# line parsers while roughly halving the ACK round-trips. If one 192-byte write fails,
-# this manager immediately retries the same file with 96 bytes only once.
-CHUNK_SIZE = 1024
-SAFE_CHUNK_SIZE = 96
-FAST_CHUNK_SIZES = (1024, 768, 512, 256, 96)
+APP_VERSION = "0.6.0"
 RESTORE_CHUNK_SIZES = (256, 192, 128, 96)
-UPLOAD_INTER_CHUNK_DELAY = 0.0
 RESTORE_INTER_CHUNK_DELAY = 0.003
-WRITE_BEGIN_TIMEOUT = 6.0
-WRITE_DATA_TIMEOUT_FAST = 1.0
-WRITE_DATA_TIMEOUT_SAFE = 2.0
 WRITE_DATA_TIMEOUT_RESTORE = 5.0
-WRITE_END_TIMEOUT = 6.0
 MAX_AUTO_RETRIES = 1
 DEFAULT_SPIFFS_CAPACITY_KB = 896
-<<<<<<< Updated upstream
-<<<<<<<< Updated upstream:LittleFS_manager/LittleFS-SPIFFS_Partition_Manager_v0.4.py
-=======
->>>>>>> Stashed changes
-MAX_PROTO_LINE_BYTES = 8 * 1024 * 1024
-SERIAL_READ_CHUNK_BYTES = 4096
-READ_LINE_TIMEOUT = 25.0
 READ_FILE_RETRIES = 1
-<<<<<<< Updated upstream
-========
-MAX_PROTO_LINE_BYTES = 2 * 1024 * 1024
->>>>>>>> Stashed changes:LittleFS_manager/LittleFS-SPIFFS_Partition_Manager_v0.3.4.py
-=======
->>>>>>> Stashed changes
+TRANSIENT_UPLOAD_RETRIES = 4
+DELETE_RETRIES = 2
+RESTORE_UPLOAD_ATTEMPT_CHUNKS = (4096, 2048, 1460, 1024)
+RESTORE_FILE_SETTLE_DELAY = 0.06
+RESTORE_RECOVERY_TIMEOUT = 20.0
+AUTO_RESUME_AFTER_RESTORE = True
 FS_PROFILE_CHOICES = (
     ("myradio_896", "myRadio / 896 KB", 896),
     ("vtomradio_yoradio_16mb_3904", "VTomRadio LittleFS 3.8 MB", 3904),
@@ -70,7 +39,7 @@ FS_PROFILE_CHOICES = (
     ("generic_2048", "Általános / 2 MB", 2048),
     ("generic_4096", "Általános / 4 MB", 4096),
     ("custom", "Egyedi", None),
-    ("disabled", "Kikapcsolva", None),
+    ("auto", "Automatikus", None),
 )
 FS_SAFETY_FLOOR_BYTES = 96 * 1024
 
@@ -78,11 +47,9 @@ FS_SAFETY_FLOOR_BYTES = 96 * 1024
 TEXT = {
     "HU": {
         "title": "LittleFS-SPIFFS Partition Manager",
-        "port": "COM port",
-        "refresh_ports": "Portok frissítése",
+        "radio_ip": "Rádió IP",
+        "wifi_connected": "WiFi kapcsolat aktív.",
         "connect": "Kapcsolódás",
-        "disconnect": "Kapcsolat bontása",
-        "maintenance": "Karbantartó mód indítása",
         "backup": "Teljes mentés (ZIP)",
         "backup_verify": "Mentés ellenőrzése",
         "restore": "Mentés visszaállítása",
@@ -96,7 +63,7 @@ TEXT = {
         "spiffs_capacity": "Partíció méret",
         "set_spiffs_capacity": "Partíció méret profil",
         "spiffs_capacity_prompt": "Válassz partíció profilt, vagy adj meg egyedi teljes méretet KB-ban.",
-        "spiffs_capacity_disabled": "Partíció méret helyellenőrzés: kikapcsolva",
+        "spiffs_capacity_disabled": "Partíció méret helyellenőrzés: automatikus (ha elérhető)",
         "spiffs_capacity_set": "Partíció méret profil aktív: {name} ({value} KB)",
         "spiffs_capacity_custom": "Egyedi Partíció méret méret KB-ban:",
         "fs_estimate_unknown": "Partíció méret: nincs adat",
@@ -110,9 +77,11 @@ TEXT = {
         "tree": "A rádió fájlrendszer tartalma",
         "type": "Típus",
         "size": "Méret",
+        "modified": "Dátum",
         "root": "gyökér",
         "status_ready": "Készen.",
         "status_connecting": "Kapcsolódás folyamatban...",
+        "status_connect_cancelled": "Kapcsolódás megszakítva.",
         "status_maintenance": "Karbantartó mód indítása...",
         "status_listing": "Fájllista frissítése...",
         "status_saving": "Mentés folyamatban...",
@@ -133,10 +102,10 @@ TEXT = {
         "done": "Kész",
         "saved": "Mentve",
         "maintenance_ok": "Karbantartó mód aktív.",
-        "ports_none": "Nincs találat",
-        "pyserial_missing": "A pyserial nincs telepítve.\nParancs: python -m pip install pyserial",
         "tree_no_selection": "Jelölj ki egy fájlt vagy mappát.",
+        "download_select_file": "A mentéshez jelölj ki egy fájlt.",
         "root_delete_blocked": "A gyökér bejegyzés nem törölhető. Jelölj ki konkrét fájlokat vagy mappákat.",
+        "delete_confirm": "Biztosan törlöd a kijelölt elemeket?\n\nKijelölt elemek: {count}\n{items}\n\nA művelet nem visszavonható.",
         "backup_done": "A teljes mentés elkészült.",
         "backup_verified": "A teljes mentés elkészült és ellenőrizve.",
         "backup_verify_failed": "A mentés ellenőrzése sikertelen: {path}",
@@ -145,6 +114,7 @@ TEXT = {
         "upload_done": "A feltöltés elkészült.",
         "delete_done": "A törlés elkészült.",
         "reboot_done": "Az újraindítás kérése elküldve.",
+        "connect_cancel": "Megszakítás",
         "no_files": "Nincs fájl a rádión.",
         "empty_folder": "A kiválasztott mappa üres.",
         "folder": "mappa",
@@ -189,11 +159,9 @@ TEXT = {
     },
     "EN": {
         "title": "LittleFS-SPIFFS Partition Manager",
-        "port": "COM port",
-        "refresh_ports": "Refresh ports",
+        "radio_ip": "Radio IP",
+        "wifi_connected": "WiFi connection is active.",
         "connect": "Connect",
-        "disconnect": "Disconnect",
-        "maintenance": "Start maintenance mode",
         "backup": "Full backup (ZIP)",
         "backup_verify": "Verify backup",
         "restore": "Restore backup",
@@ -207,7 +175,7 @@ TEXT = {
         "spiffs_capacity": "Partition size",
         "set_spiffs_capacity": "Partition size profile",
         "spiffs_capacity_prompt": "Choose an estimated filesystem profile, or enter a custom total size in KB.",
-        "spiffs_capacity_disabled": "Partition size space check: disabled",
+        "spiffs_capacity_disabled": "Partition size space check: automatic (if available)",
         "spiffs_capacity_set": "Partition size profile active: {name} ({value} KB)",
         "spiffs_capacity_custom": "Custom Partition size in KB:",
         "fs_estimate_unknown": "Partition size: no data",
@@ -221,9 +189,11 @@ TEXT = {
         "tree": "Radio filesystem contents",
         "type": "Type",
         "size": "Size",
+        "modified": "Date",
         "root": "root",
         "status_ready": "Ready.",
         "status_connecting": "Connecting...",
+        "status_connect_cancelled": "Connection cancelled.",
         "status_maintenance": "Starting maintenance mode...",
         "status_listing": "Refreshing file list...",
         "status_saving": "Saving backup...",
@@ -244,10 +214,10 @@ TEXT = {
         "done": "Done",
         "saved": "Saved",
         "maintenance_ok": "Maintenance mode is active.",
-        "ports_none": "No ports found",
-        "pyserial_missing": "pyserial is not installed.\nCommand: python -m pip install pyserial",
         "tree_no_selection": "Select a file or folder.",
+        "download_select_file": "Select a file to save.",
         "root_delete_blocked": "The root entry cannot be deleted. Select specific files or folders.",
+        "delete_confirm": "Are you sure you want to delete the selected items?\n\nSelected items: {count}\n{items}\n\nThis action cannot be undone.",
         "backup_done": "Full backup completed.",
         "backup_verified": "Full backup completed and verified.",
         "backup_verify_failed": "Backup verification failed: {path}",
@@ -256,6 +226,7 @@ TEXT = {
         "upload_done": "Upload completed.",
         "delete_done": "Delete completed.",
         "reboot_done": "Reboot requested.",
+        "connect_cancel": "Cancel",
         "no_files": "There are no files on the radio.",
         "empty_folder": "The selected folder is empty.",
         "folder": "folder",
@@ -341,6 +312,15 @@ def fmt_size(size: int) -> str:
     return f"{size} B"
 
 
+def fmt_mtime(epoch_seconds: int | None) -> str:
+    if not epoch_seconds:
+        return ""
+    try:
+        return time.strftime("%Y-%m-%d %H:%M", time.localtime(int(epoch_seconds)))
+    except Exception:
+        return ""
+
+
 
 
 def parse_positive_int_or_none(value: str) -> int | None:
@@ -366,6 +346,22 @@ def build_open_failed_hint(base_error: str, localized_hint: str) -> str:
     if localized_hint in base_error:
         return base_error
     return f"{base_error} | {localized_hint}"
+
+
+def is_probable_transient_upload_disconnect(error_text: str) -> bool:
+    msg = (error_text or "").lower()
+    transient_tokens = (
+        "winerror 10060",
+        "winerror 10054",
+        "kapcsolódási kísérlet nem sikerült",
+        "did not properly respond",
+        "forcibly closed",
+        "connection reset",
+        "reset by peer",
+        "timed out",
+        "timeout",
+    )
+    return any(token in msg for token in transient_tokens)
 
 
 def set_windows_app_id():
@@ -444,6 +440,11 @@ def apply_theme(root: tk.Tk, dark: bool):
         style.map("TButton", background=[("active", "#2f3136"), ("pressed", "#2a2d31")], foreground=[("disabled", "#8a8a8a")])
         style.configure("TCombobox", fieldbackground=panel, background=panel, foreground=fg, arrowcolor=fg, bordercolor=edge, lightcolor=edge, darkcolor=edge)
         style.map("TCombobox", fieldbackground=[("readonly", panel)], selectbackground=[("readonly", select)], selectforeground=[("readonly", fg)])
+        # Make normal text entry fields readable in Windows dark mode too.
+        # Without this, ttk.Entry may keep a light fieldbackground while the text
+        # foreground is inherited as white, which makes the radio IP invisible.
+        style.configure("TEntry", fieldbackground=panel, background=panel, foreground=fg, insertcolor=fg, bordercolor=edge, lightcolor=edge, darkcolor=edge)
+        style.map("TEntry", fieldbackground=[("focus", panel), ("!disabled", panel)], foreground=[("!disabled", fg)])
         style.configure("Treeview", background=panel, fieldbackground=panel, foreground=fg, bordercolor=edge, lightcolor=edge, darkcolor=edge)
         style.configure("Treeview.Heading", background="#2d2d30", foreground=fg, bordercolor=edge, lightcolor=edge, darkcolor=edge)
         style.map("Treeview", background=[("selected", select)], foreground=[("selected", fg)])
@@ -462,11 +463,16 @@ class ProtoError(RuntimeError):
     pass
 
 
+class UserCancelled(RuntimeError):
+    pass
+
+
 @dataclass
 class RemoteFile:
     path: str
     size: int
     is_dir: bool = False
+    modified_ts: int | None = None
 
 
 @dataclass
@@ -483,253 +489,183 @@ class UploadTask:
     task_id: str = field(default_factory=lambda: f"task-{time.time_ns()}")
 
 
-class SerialSpiFFSClient:
+class HttpSpiFFSClient:
     def __init__(self):
-        self.ser = None
+        self.base_url = ""
+        self.connected = False
         self.debug_lines: list[str] = []
-        self._line_buffer = bytearray()
+        self.fs_info_cache: dict[str, int | str] | None = None
 
-    def connect(self, port: str, baudrate: int = DEFAULT_BAUDRATE, timeout: float = 0.8):
-        if serial is None:
-            raise ProtoError("pyserial not installed")
+    @property
+    def ser(self):
+        # Compatibility with old GUI checks. WiFi mode has no serial port.
+        return self if self.connected else None
 
-        tmp = serial.Serial()
-        tmp.port = port
-        tmp.baudrate = baudrate
-        tmp.timeout = timeout
-        tmp.write_timeout = 20
-        try:
-            tmp.dtr = False
-            tmp.rts = False
-        except Exception:
-            pass
-        tmp.open()
-        self.ser = tmp
+    def connect(self, host: str, timeout: float = 15.0, cancel_event: threading.Event | None = None):
+        host = (host or "").strip()
+        if not host:
+            raise ProtoError("missing radio IP")
+        if not host.startswith("http://") and not host.startswith("https://"):
+            host = "http://" + host
+        self.base_url = host.rstrip("/")
+        deadline = time.time() + max(2.0, timeout)
+        last_error: Exception | None = None
+        # Use short connect slices so user cancellation can interrupt quickly.
+        while time.time() < deadline:
+            if cancel_event and cancel_event.is_set():
+                raise UserCancelled("connect cancelled")
+            remaining = max(0.5, deadline - time.time())
+            try:
+                self._request("GET", "/api/fs/ping", timeout=min(2.5, remaining))
+                self.connected = True
+                return
+            except Exception as e:
+                last_error = e
 
-        time.sleep(1.7)
-        self.light_drain(0.6)
+            if cancel_event and cancel_event.is_set():
+                raise UserCancelled("connect cancelled")
+
+            # Older firmwares may miss /api/fs/ping; fallback with short LIST probe.
+            try:
+                self._request("GET", "/api/fs/list", timeout=min(3.0, remaining))
+                self.connected = True
+                return
+            except Exception as e:
+                last_error = e
+
+            time.sleep(0.25)
+
+        if cancel_event and cancel_event.is_set():
+            raise UserCancelled("connect cancelled")
+        raise ProtoError(str(last_error) if last_error else "connect timeout")
 
     def disconnect(self):
-        if self.ser:
-            try:
-                self.ser.close()
-            finally:
-                self.ser = None
-
-    def light_drain(self, duration: float = 0.25):
-        if not self.ser:
-            return
-        end = time.time() + duration
-        while time.time() < end:
-            raw = self.ser.readline()
-            if not raw:
-                continue
-            line = raw.decode("utf-8", errors="ignore").strip()
-            if line:
-                self.debug_lines.append(line)
-                self.debug_lines = self.debug_lines[-20:]
-
-    def clear_input(self):
-        if not self.ser:
-            return
-        try:
-            self.ser.reset_input_buffer()
-            self.ser.reset_output_buffer()
-        except Exception:
-            pass
-        self.light_drain(0.15)
-
-    def _write_line(self, line: str, *, debug: bool = True):
-        if not self.ser:
-            raise ProtoError("not connected")
-        self.ser.write((line + "\n").encode("utf-8"))
-
-        # WRITE_DATA is sent thousands of times during uploads.
-        # Avoid per-chunk flush() because it massively reduces throughput
-        # on many USB serial drivers.
-        if not line.startswith("WRITE_DATA|"):
-            self.ser.flush()
-
-        if debug:
-            self.debug_lines.append(f">>> {line}")
-            self.debug_lines = self.debug_lines[-20:]
-
-    def _read_proto_line(self, timeout: float = 15.0) -> str:
-        if not self.ser:
-            raise ProtoError("not connected")
-        end = time.time() + timeout
-        last_noise = ""
-        buf = self._line_buffer
-        self._line_buffer = bytearray()
-        while time.time() < end:
-            while True:
-                newline_at = buf.find(b"\n")
-                if newline_at < 0:
-                    break
-                raw_line = bytes(buf[:newline_at])
-                del buf[:newline_at + 1]
-                raw_line = raw_line.replace(b"\r", b"")
-                if not raw_line:
-                    continue
-                line = raw_line.decode("utf-8", errors="ignore").strip()
-                if not line:
-                    continue
-                self.debug_lines.append(line)
-                self.debug_lines = self.debug_lines[-20:]
-                if not line.startswith("MRSPIFS|"):
-                    last_noise = line
-                    continue
-                self._line_buffer = buf
-                return line[len("MRSPIFS|"):]
-
-            if len(buf) > MAX_PROTO_LINE_BYTES:
-                preview = buf[:120].decode("utf-8", errors="ignore")
-                buf.clear()
-                raise ProtoError(f"protocol line too long (starts with: {preview})")
-
-            try:
-                waiting = int(getattr(self.ser, "in_waiting", 0) or 0)
-            except Exception:
-                waiting = 0
-            read_size = min(max(1, waiting), SERIAL_READ_CHUNK_BYTES)
-            raw = self.ser.read(read_size)
-            if raw:
-                buf.extend(raw)
-                end = time.time() + timeout
-        if last_noise:
-            raise ProtoError(f"protocol timeout (last serial: {last_noise[:120]})")
-        if buf:
-            tail = buf[:120].decode("utf-8", errors="ignore")
-            buf.clear()
-            raise ProtoError(f"protocol timeout (partial serial line: {tail})")
-        raise ProtoError("protocol timeout")
-
-    def _hello_begin_handshake(self, window: float) -> bool:
-        """LittleFS-manager compatible HELLO -> BEGIN boot-window handshake."""
-        deadline = time.time() + window
-        while time.time() < deadline:
-            self._write_line("HELLO")
-            try:
-                line = self._read_proto_line(timeout=1.2)
-            except ProtoError:
-                continue
-            parts = line.split("|")
-            if not (len(parts) >= 2 and parts[0] == "OK" and parts[1] == "HELLO"):
-                continue
-            self._write_line("BEGIN")
-            try:
-                line = self._read_proto_line(timeout=2.0)
-            except ProtoError:
-                continue
-            parts = line.split("|")
-            if len(parts) >= 2 and parts[0] == "OK" and parts[1] == "BEGIN":
-                return True
-        return False
-
-    def begin_maintenance(self):
-        # Newer LittleFS-capable firmware may expose a clean reboot-maintenance window.
-        # Keep the old MRSPIFS:BEGIN fallback, so existing SPIFFS firmware still works.
-        self.clear_input()
-        try:
-            self._write_line("REBOOT_MAINT")
-            try:
-                self._read_proto_line(timeout=2.0)
-            except ProtoError:
-                pass
-            time.sleep(2.5)
-            self.clear_input()
-            if self._hello_begin_handshake(window=6.0):
-                return True
-        except Exception:
-            self.clear_input()
-
-        for _ in range(14):
-            self._write_line("MRSPIFS:BEGIN")
-            try:
-                line = self._read_proto_line(timeout=2.8)
-            except ProtoError:
-                time.sleep(0.25)
-                continue
-            parts = line.split("|")
-            if len(parts) >= 2 and parts[0] == "OK" and parts[1] == "BEGIN":
-                return True
-            raise ProtoError("unexpected BEGIN reply: " + line)
-        raise ProtoError("could not enter maintenance mode")
+        self.connected = False
 
     def ping(self):
-        self._write_line("PING")
-        parts = self._read_proto_line(timeout=5.0).split("|")
-        if len(parts) >= 2 and parts[0] == "OK" and parts[1] == "PING":
-            return True
-        raise ProtoError("bad PING reply")
+        try:
+            self._request("GET", "/api/fs/ping", timeout=5.0)
+        except ProtoError:
+            self._request("GET", "/api/fs/list", timeout=15.0)
+        return True
+
+    def begin_maintenance(self):
+        # WiFi mode talks to the normal webserver. No serial maintenance window needed.
+        return True
 
     def abort_write(self):
-        self._write_line("WRITE_ABORT")
-        parts = self._read_proto_line(timeout=5.0).split("|")
-        if not (len(parts) >= 2 and parts[0] == "OK" and parts[1] == "WRITE_ABORT"):
-            raise ProtoError("bad WRITE_ABORT reply: " + "|".join(parts))
+        return True
 
-    def ensure_idle(self):
+    def mkdir(self, path: str):
+        path = normalize_remote_path(path)
+        self._post_form("/api/fs/mkdir", {"path": path})
+
+    def rmdir(self, path: str):
+        path = normalize_remote_path(path)
+        last_error: Exception | None = None
+        for attempt in range(DELETE_RETRIES + 1):
+            try:
+                self._post_form("/api/fs/rmdir", {"path": path}, timeout=90.0)
+                return
+            except Exception as e:
+                last_error = e
+                if attempt < DELETE_RETRIES and is_probable_transient_upload_disconnect(str(e)):
+                    time.sleep(0.35 * (attempt + 1))
+                    continue
+                raise
+        if last_error:
+            raise last_error
+
+    def delete_file(self, path: str):
+        path = normalize_remote_path(path)
+        last_error: Exception | None = None
+        for attempt in range(DELETE_RETRIES + 1):
+            try:
+                self._post_form("/api/fs/delete", {"path": path}, timeout=90.0)
+                return
+            except Exception as e:
+                last_error = e
+                if attempt < DELETE_RETRIES and is_probable_transient_upload_disconnect(str(e)):
+                    time.sleep(0.35 * (attempt + 1))
+                    continue
+                raise
+        if last_error:
+            raise last_error
+
+    def reboot(self):
+        self._request("POST", "/api/reboot", data=b"", headers={"Content-Type": "application/x-www-form-urlencoded"}, timeout=5.0)
+        self.connected = False
+
+    def get_fs_info(self) -> dict[str, int | str] | None:
         try:
-            self.abort_write()
+            raw = self._request("GET", "/api/fs/info", timeout=10.0)
+        except ProtoError:
+            return None
+
+        try:
+            info = json.loads(raw.decode("utf-8", errors="replace"))
         except Exception:
-            self.clear_input()
+            return None
+
+        if not isinstance(info, dict) or not info.get("ok"):
+            return None
+
+        try:
+            total = int(info.get("total", 0) or 0)
+            used = int(info.get("used", 0) or 0)
+            free = int(info.get("free", 0) or 0)
+        except Exception:
+            return None
+
+        if total <= 0:
+            return None
+
+        backend = str(info.get("backend", "")).strip().lower() or "unknown"
+        parsed = {
+            "backend": backend,
+            "total": total,
+            "used": max(0, used),
+            "free": max(0, free),
+        }
+        self.fs_info_cache = parsed
+        return parsed
 
     def list_files(self) -> list[RemoteFile]:
-        self._write_line("LIST")
-        files = []
-        while True:
-            parts = self._read_proto_line(timeout=20.0).split("|")
-            if not parts:
-                continue
-            if parts[0] == "FILE" and len(parts) >= 3:
+        raw = self._request("GET", "/api/fs/list", timeout=45.0)
+        try:
+            data = json.loads(raw.decode("utf-8", errors="replace"))
+        except Exception as e:
+            raise ProtoError(f"bad WiFi LIST reply: {e}")
+        files: list[RemoteFile] = []
+        if isinstance(data, list):
+            for item in data:
+                if not isinstance(item, dict):
+                    continue
+                path = item.get("path") or item.get("name") or ""
+                if not path:
+                    continue
+                is_dir = bool(item.get("dir") or item.get("is_dir") or item.get("type") == "dir")
                 try:
-                    files.append(RemoteFile(normalize_remote_path(parts[1]), int(parts[2]), False))
-                except ValueError:
-                    pass
-            elif parts[0] == "DIR" and len(parts) >= 2:
-                files.append(RemoteFile(normalize_remote_path(parts[1]), 0, True))
-            elif parts[0] == "OK" and len(parts) >= 2 and parts[1] == "LIST":
-                break
-            elif parts[0] == "ERR":
-                raise ProtoError("|".join(parts))
+                    size = int(item.get("size", 0) or 0)
+                except Exception:
+                    size = 0
+                raw_mtime = item.get("mtime", item.get("modified", item.get("last_write", item.get("timestamp"))))
+                try:
+                    modified_ts = int(raw_mtime) if raw_mtime not in (None, "") else None
+                except Exception:
+                    modified_ts = None
+                if modified_ts is not None and modified_ts <= 0:
+                    modified_ts = None
+                files.append(RemoteFile(normalize_remote_path(str(path)), size, is_dir, modified_ts))
         return sorted(files, key=lambda x: (x.path.lower(), not x.is_dir))
 
     def read_file(self, path: str, expected_size: int | None = None) -> bytes:
         path = normalize_remote_path(path)
-        self._write_line(f"READ|PATH|{path}")
-        out = bytearray()
-        corrupt_error: ProtoError | None = None
-        while True:
-            parts = self._read_proto_line(timeout=READ_LINE_TIMEOUT).split("|")
-            if not parts:
-                continue
-            if parts[0] == "READ_BEGIN":
-                continue
-            if parts[0] == "DATA" and len(parts) >= 2:
-                b64 = parts[1].strip()
-                remainder = len(b64) % 4
-                if remainder == 1:
-                    if corrupt_error is None:
-                        corrupt_error = ProtoError(f"corrupt READ data for {path}: base64 length {len(b64)} cannot be repaired")
-                    continue
-                if remainder:
-                    b64 += "=" * (4 - remainder)
-                try:
-                    if corrupt_error is None:
-                        out.extend(base64.b64decode(b64, validate=True))
-                except Exception as e:
-                    if corrupt_error is None:
-                        corrupt_error = ProtoError(f"corrupt READ data for {path}: {e}")
-                continue
-            if parts[0] == "OK" and len(parts) >= 2 and parts[1] == "READ_END":
-                if corrupt_error is not None:
-                    raise corrupt_error
-                if expected_size is not None and len(out) != expected_size:
-                    raise ProtoError(f"READ size mismatch for {path}: expected {expected_size}, got {len(out)}")
-                return bytes(out)
-            if parts[0] == "ERR":
-                raise ProtoError("|".join(parts))
+        query = urllib.parse.urlencode({"path": path})
+        data = self._request("GET", "/api/fs/read?" + query, timeout=30.0)
+        if expected_size is not None and len(data) != expected_size:
+            raise ProtoError(f"READ size mismatch for {path}: expected {expected_size}, got {len(data)}")
+        return data
 
     def read_file_retry(self, path: str, expected_size: int | None = None, retries: int = READ_FILE_RETRIES) -> bytes:
         last_error: Exception | None = None
@@ -738,100 +674,112 @@ class SerialSpiFFSClient:
                 return self.read_file(path, expected_size=expected_size)
             except Exception as e:
                 last_error = e
-                self.clear_input()
                 if attempt < retries:
                     time.sleep(0.25)
                     continue
                 raise
         raise ProtoError(str(last_error) if last_error else f"READ failed for {path}")
 
-    def write_file(self, path: str, data: bytes, chunk_sizes=None, write_data_timeout: float | None = None, inter_chunk_delay: float = UPLOAD_INTER_CHUNK_DELAY):
+    def write_file(self, path: str, data: bytes, chunk_sizes=None, write_data_timeout: float | None = None, inter_chunk_delay: float = 0.0):
         path = normalize_remote_path(path)
-        last_err = None
-        chunk_sizes = chunk_sizes or FAST_CHUNK_SIZES
+        boundary = "----myradio-manager-" + str(time.time_ns())
+        head = (
+            f"--{boundary}\r\n"
+            f"Content-Disposition: form-data; name=\"path\"\r\n\r\n"
+            f"{path}\r\n"
+            f"--{boundary}\r\n"
+            f"Content-Disposition: form-data; name=\"file\"; filename=\"{Path(path).name or 'upload.bin'}\"\r\n"
+            f"Content-Type: application/octet-stream\r\n\r\n"
+        ).encode("utf-8")
+        tail = f"\r\n--{boundary}--\r\n".encode("utf-8")
+        body = head + data + tail
 
-        # Safe-fast upload:
-        # - first try 192-byte chunks for roughly 2x fewer ACK round-trips than 96
-        # - if the firmware rejects/times out, abort immediately and retry at 96
-        # - no oversized 512/768/1024 tests, so small files do not sit for minutes
-        for attempt, chunk_size in enumerate(chunk_sizes, 1):
-            timeout = write_data_timeout if write_data_timeout is not None else (WRITE_DATA_TIMEOUT_SAFE if chunk_size <= SAFE_CHUNK_SIZE else WRITE_DATA_TIMEOUT_FAST)
+        # Important: pass the target path in the URL query too.
+        # Arduino WebServer may not expose earlier multipart form fields via
+        # server.arg("path") yet when UPLOAD_FILE_START fires, so relying only
+        # on the multipart "path" field can make uploads fall back to basename
+        # handling on some firmwares and flatten restored folders into root.
+        query = urllib.parse.urlencode({"path": path})
+        parsed = urllib.parse.urlsplit(self.base_url)
+        if not parsed.scheme or not parsed.netloc:
+            raise ProtoError("missing or invalid base URL")
+        target = parsed.path.rstrip("/") + "/upload?" + query
+        # Serial restore used very small write timeouts/chunks; over WiFi those
+        # values can prematurely break larger HTTP uploads.
+        timeout = max(30.0, float(write_data_timeout)) if write_data_timeout is not None else 60.0
+        conn_cls = http.client.HTTPSConnection if parsed.scheme == "https" else http.client.HTTPConnection
+        total_len = len(body)
+
+        conn = conn_cls(parsed.netloc, timeout=timeout)
+        try:
+            conn.putrequest("POST", target)
+            conn.putheader("Content-Type", f"multipart/form-data; boundary={boundary}")
+            conn.putheader("Content-Length", str(total_len))
+            conn.putheader("Connection", "close")
+            conn.endheaders()
+
+            conn.send(head)
+
+            plan = [int(cs) for cs in (chunk_sizes or (4096,)) if int(cs) > 0]
+            if not plan:
+                plan = [4096]
+            # Avoid very small HTTP writes (for example 96..256 bytes) that create
+            # excessive packet churn and can destabilize long ESP uploads.
+            plan = [max(1024, cs) for cs in plan]
+
+            uploaded = 0
+            chunk_index = 0
+            max_chunk = max(plan)
+            chunk_total = max(1, math.ceil(len(data) / max_chunk))
+            while uploaded < len(data):
+                chunk_size = plan[chunk_index % len(plan)]
+                part = data[uploaded:uploaded + chunk_size]
+                conn.send(part)
+                uploaded += len(part)
+                chunk_index += 1
+                yield chunk_index, chunk_total, uploaded
+                if inter_chunk_delay > 0:
+                    time.sleep(inter_chunk_delay)
+
+            conn.send(tail)
+            resp = conn.getresponse()
+            resp_data = resp.read()
+            self.debug_lines.append(f"POST /upload?path=... -> {resp.status}")
+            self.debug_lines = self.debug_lines[-20:]
+            if resp.status >= 400:
+                detail = resp_data.decode("utf-8", errors="replace")[:240]
+                raise ProtoError(f"HTTP {resp.status} POST /upload?{query}: {detail}")
+        except ProtoError:
+            raise
+        except Exception as e:
+            raise ProtoError(f"WiFi request failed POST /upload?{query}: {e}")
+        finally:
             try:
-                self.ensure_idle()
-                self._write_line(f"WRITE_BEGIN|PATH|{path}|{len(data)}")
-                parts = self._read_proto_line(timeout=WRITE_BEGIN_TIMEOUT).split("|")
-                if not (len(parts) >= 2 and parts[0] == "OK" and parts[1] == "WRITE_BEGIN"):
-                    raise ProtoError("bad WRITE_BEGIN reply: " + "|".join(parts))
+                conn.close()
+            except Exception:
+                pass
 
-                total_chunks = max(1, (len(data) + chunk_size - 1) // chunk_size)
-                uploaded = 0
+    def _post_form(self, path: str, fields: dict[str, str], timeout: float = 15.0) -> bytes:
+        body = urllib.parse.urlencode(fields).encode("utf-8")
+        return self._request("POST", path, data=body, headers={"Content-Type": "application/x-www-form-urlencoded"}, timeout=timeout)
 
-                if not data:
-                    yield 1, 1, 0
-
-                for idx, i in enumerate(range(0, len(data), chunk_size), 1):
-                    chunk = data[i:i + chunk_size]
-                    b64 = base64.b64encode(chunk).decode("ascii")
-                    self._write_line(f"WRITE_DATA|B64|{b64}", debug=False)
-                    parts = self._read_proto_line(timeout=timeout).split("|")
-                    if not (len(parts) >= 2 and parts[0] == "OK" and parts[1] == "WRITE_DATA"):
-                        raise ProtoError(
-                            f"bad WRITE_DATA reply at chunk {idx}/{total_chunks} "
-                            f"for {path} with chunk_size={chunk_size}: " + "|".join(parts)
-                        )
-                    uploaded += len(chunk)
-                    self.debug_lines.append(f"UPLOAD_CHUNK={chunk_size}")
-                    self.debug_lines = self.debug_lines[-20:]
-                    yield idx, total_chunks, uploaded
-                    if inter_chunk_delay:
-                        time.sleep(inter_chunk_delay)
-
-                self._write_line("WRITE_END")
-                parts = self._read_proto_line(timeout=WRITE_END_TIMEOUT).split("|")
-                if not (len(parts) >= 2 and parts[0] == "OK" and parts[1] == "WRITE_END"):
-                    raise ProtoError("bad WRITE_END reply: " + "|".join(parts))
-                return
-
-            except Exception as e:
-                last_err = e
-                try:
-                    self.abort_write()
-                except Exception:
-                    self.clear_input()
-
-                # Do not keep retrying failed fast mode. One quick fallback is enough.
-                if chunk_size <= SAFE_CHUNK_SIZE:
-                    break
-                time.sleep(0.05)
-
-        raise ProtoError(f"write failed after safe fallback for {path}: {last_err}")
-
-    def delete_file(self, path: str):
-        path = normalize_remote_path(path)
-        self._write_line(f"DELETE|PATH|{path}")
-        parts = self._read_proto_line(timeout=15.0).split("|")
-        if not (len(parts) >= 2 and parts[0] == "OK" and parts[1] == "DELETE"):
-            raise ProtoError("bad DELETE reply: " + "|".join(parts))
-
-    def mkdir(self, path: str):
-        path = normalize_remote_path(path)
-        self._write_line(f"MKDIR|PATH|{path}")
-        parts = self._read_proto_line(timeout=15.0).split("|")
-        if not (len(parts) >= 2 and parts[0] == "OK" and parts[1] == "MKDIR"):
-            raise ProtoError("bad MKDIR reply: " + "|".join(parts))
-
-    def rmdir(self, path: str):
-        path = normalize_remote_path(path)
-        self._write_line(f"RMDIR|PATH|{path}")
-        parts = self._read_proto_line(timeout=15.0).split("|")
-        if not (len(parts) >= 2 and parts[0] == "OK" and parts[1] == "RMDIR"):
-            raise ProtoError("bad RMDIR reply: " + "|".join(parts))
-
-    def reboot(self):
-        self._write_line("REBOOT")
-        parts = self._read_proto_line(timeout=5.0).split("|")
-        if not (len(parts) >= 2 and parts[0] == "OK" and parts[1] == "REBOOT"):
-            raise ProtoError("bad REBOOT reply: " + "|".join(parts))
+    def _request(self, method: str, path: str, data: bytes | None = None, headers: dict[str, str] | None = None, timeout: float = 10.0) -> bytes:
+        if path.startswith("http://") or path.startswith("https://"):
+            url = path
+        else:
+            url = self.base_url + path
+        req = urllib.request.Request(url, data=data, headers=headers or {}, method=method)
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                out = resp.read()
+                self.debug_lines.append(f"{method} {path} -> {resp.status}")
+                self.debug_lines = self.debug_lines[-20:]
+                return out
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode("utf-8", errors="replace")[:240]
+            raise ProtoError(f"HTTP {e.code} {method} {path}: {detail}")
+        except Exception as e:
+            raise ProtoError(f"WiFi request failed {method} {path}: {e}")
 
 
 class App(tk.Tk):
@@ -839,7 +787,7 @@ class App(tk.Tk):
         set_windows_app_id()
         super().__init__()
         self.lang = "HU"
-        self.client = SerialSpiFFSClient()
+        self.client = HttpSpiFFSClient()
         self.files: list[RemoteFile] = []
         self.worker = None
         self.cancel_event = threading.Event()
@@ -857,21 +805,13 @@ class App(tk.Tk):
         self.known_remote_file_paths: dict[tuple[str, int], str] = {}
         self.known_remote_dir_paths: set[str] = {"/"}
         self.queue_stop_reason: str | None = None
-<<<<<<< Updated upstream
-<<<<<<<< Updated upstream:LittleFS_manager/LittleFS-SPIFFS_Partition_Manager_v0.4.py
-        self.fs_profile_key = "disabled"
-        self.fs_profile_name = "Kikapcsolva"
+        self.fs_profile_key = "auto"
+        self.fs_profile_name = "Automatikus"
         self.spiffs_capacity_kb = None
-========
-        self.fs_profile_key = "myradio_896"
-        self.fs_profile_name = "myRadio / 896 KB"
-        self.spiffs_capacity_kb = DEFAULT_SPIFFS_CAPACITY_KB
->>>>>>>> Stashed changes:LittleFS_manager/LittleFS-SPIFFS_Partition_Manager_v0.3.4.py
-=======
-        self.fs_profile_key = "myradio_896"
-        self.fs_profile_name = "myRadio / 896 KB"
-        self.spiffs_capacity_kb = DEFAULT_SPIFFS_CAPACITY_KB
->>>>>>> Stashed changes
+        self.detected_fs_total_bytes: int | None = None
+        self.detected_fs_backend: str | None = None
+        self.connect_cancel_event = threading.Event()
+        self.connecting = False
 
         self.title(f"{self.tr('title')} v{APP_VERSION}")
         self.geometry("1180x860")
@@ -888,7 +828,7 @@ class App(tk.Tk):
                 except Exception:
                     pass
 
-        self.port_var = tk.StringVar()
+        self.ip_var = tk.StringVar(value="192.168.1.")
         self.status_var = tk.StringVar(value=self.tr("status_ready"))
         self.progress_var = tk.DoubleVar(value=0.0)
         self.overall_progress_var = tk.DoubleVar(value=0.0)
@@ -898,18 +838,10 @@ class App(tk.Tk):
         self.eta_var = tk.StringVar(value="--:--")
         self.failures_var = tk.StringVar(value="0")
         self.fs_estimate_var = tk.StringVar(value=self.tr("fs_estimate_unknown"))
-<<<<<<< Updated upstream
-<<<<<<<< Updated upstream:LittleFS_manager/LittleFS-SPIFFS_Partition_Manager_v0.4.py
         self.verify_backup_var = tk.BooleanVar(value=False)
-========
->>>>>>>> Stashed changes:LittleFS_manager/LittleFS-SPIFFS_Partition_Manager_v0.3.4.py
-=======
-        self.verify_backup_var = tk.BooleanVar(value=False)
->>>>>>> Stashed changes
 
         self._build_ui()
         self.update_fs_estimate()
-        self.refresh_ports()
         self._tree_scrollbar_after_id = None
         self._queue_tree_scrollbar_after_id = None
         self.after(100, self._refresh_tree_scrollbar)
@@ -917,8 +849,6 @@ class App(tk.Tk):
         self.bind("<Configure>", lambda event: self.after_idle(self._on_window_layout_change))
         if self._dark_mode:
             self.after(50, lambda: apply_dark_title_bar(self))
-        if serial is None:
-            self.show_warning(self.tr("error"), self.tr("pyserial_missing"))
 
     def tr(self, key: str) -> str:
         return TEXT[self.lang][key]
@@ -1012,18 +942,23 @@ class App(tk.Tk):
     def _build_ui(self):
         top = ttk.Frame(self, padding=8)
         top.pack(fill="x")
-        self.lbl_port = ttk.Label(top, text=self.tr("port"))
-        self.lbl_port.grid(row=0, column=0, sticky="w")
-        self.port_combo = ttk.Combobox(top, textvariable=self.port_var, width=22, state="readonly")
-        self.port_combo.grid(row=0, column=1, sticky="ew", padx=6)
-        self.btn_ports = ttk.Button(top, text=self.tr("refresh_ports"), command=self.refresh_ports)
-        self.btn_ports.grid(row=0, column=2, padx=4)
-        self.btn_maint = ttk.Button(top, text=self.tr("maintenance"), command=self.connect)
-        self.btn_maint.grid(row=0, column=3, padx=4)
+        self.lbl_ip = ttk.Label(top, text=self.tr("radio_ip"))
+        self.lbl_ip.grid(row=0, column=0, sticky="w")
+        self.ip_entry = ttk.Entry(top, textvariable=self.ip_var, width=20)
+        if self._dark_mode:
+            try:
+                self.ip_entry.configure(style="TEntry")
+            except Exception:
+                pass
+        self.ip_entry.grid(row=0, column=1, sticky="ew", padx=6)
+        self.ip_entry.bind("<Return>", lambda _event: self.connect())
+        self.ip_entry.bind("<KP_Enter>", lambda _event: self.connect())
+        self.btn_maint = ttk.Button(top, text=self.tr("connect"), command=self.connect)
+        self.btn_maint.grid(row=0, column=2, padx=4)
         self.btn_lang = ttk.Button(top, text=self.tr("lang"), command=self.toggle_lang)
-        self.btn_lang.grid(row=0, column=6, padx=4)
+        self.btn_lang.grid(row=0, column=3, padx=4)
         self.btn_capacity = ttk.Button(top, text=self.tr("spiffs_capacity"), command=self.set_spiffs_capacity)
-        self.btn_capacity.grid(row=0, column=7, padx=4)
+        self.btn_capacity.grid(row=0, column=4, padx=4)
         top.columnconfigure(1, weight=1)
 
         actions = ttk.Frame(self, padding=(8, 0, 8, 8))
@@ -1052,6 +987,8 @@ class App(tk.Tk):
         self.connection_progress_label.pack(side="left", padx=(0, 8))
         self.connection_progress = ttk.Progressbar(self.connection_progress_row, mode="indeterminate", length=360)
         self.connection_progress.pack(side="left")
+        self.btn_connect_cancel = ttk.Button(self.connection_progress_row, text=self.tr("connect_cancel"), command=self.cancel_connect, width=12)
+        self.btn_connect_cancel.pack(side="left", padx=(8, 0))
 
         self.main_pane = ttk.Panedwindow(self, orient="horizontal")
         self.main_pane.pack(fill="both", expand=True, padx=8, pady=(0, 8))
@@ -1068,13 +1005,15 @@ class App(tk.Tk):
         self.tree_wrap.pack(fill="both", expand=True)
         self.tree_wrap.rowconfigure(0, weight=1)
         self.tree_wrap.columnconfigure(0, weight=1)
-        self.tree = ttk.Treeview(self.tree_wrap, columns=("type", "size"), show="tree headings", selectmode="extended")
+        self.tree = ttk.Treeview(self.tree_wrap, columns=("type", "size", "modified"), show="tree headings", selectmode="extended")
         self.tree.heading("#0", text=self.tr("tree"))
         self.tree.heading("type", text=self.tr("type"))
         self.tree.heading("size", text=self.tr("size"))
+        self.tree.heading("modified", text=self.tr("modified"))
         self.tree.column("#0", width=430, minwidth=160, anchor="w", stretch=True)
         self.tree.column("type", width=95, minwidth=90, anchor="w", stretch=False)
         self.tree.column("size", width=85, minwidth=80, anchor="w", stretch=False)
+        self.tree.column("modified", width=132, minwidth=120, anchor="w", stretch=False)
         self.tree_ys = ttk.Scrollbar(self.tree_wrap, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=self._on_tree_yview)
         self.tree.grid(row=0, column=0, sticky="nsew")
@@ -1296,7 +1235,7 @@ class App(tk.Tk):
 
     def _localized_profile_label(self, key: str, label: str, kb: int | None) -> str:
         if self.lang == "EN":
-            label = label.replace("Általános", "Generic").replace("Egyedi", "Custom").replace("Kikapcsolva", "Disabled")
+            label = label.replace("Általános", "Generic").replace("Egyedi", "Custom").replace("Automatikus", "Automatic")
         return label
 
     def _fs_profile_options(self) -> list[tuple[str, str, int | None]]:
@@ -1304,7 +1243,14 @@ class App(tk.Tk):
 
     def _set_fs_profile(self, key: str, name: str, kb: int | None):
         self.fs_profile_key = key
-        self.fs_profile_name = name
+        if key == "auto":
+            label = self._backend_display_name(self.detected_fs_backend) if self.detected_fs_backend else None
+            if label:
+                self.fs_profile_name = ("Automatikus" if self.lang == "HU" else "Auto") + f" ({label})"
+            else:
+                self.fs_profile_name = "Automatikus" if self.lang == "HU" else "Auto"
+        else:
+            self.fs_profile_name = name
         self.spiffs_capacity_kb = kb
         self.update_fs_estimate()
         if kb is None:
@@ -1376,18 +1322,47 @@ class App(tk.Tk):
             key, name, kb = result["value"]
             self._set_fs_profile(key, name, kb)
 
+    def _backend_display_name(self, backend: str | None) -> str:
+        b = (backend or "").strip().lower()
+        if b == "littlefs":
+            return "LittleFS"
+        if b == "spiffs":
+            return "SPIFFS"
+        return (backend or "unknown").upper()
+
+    def _apply_remote_fs_info(self, info: dict[str, int | str] | None):
+        if not info:
+            return
+        try:
+            total = int(info.get("total", 0) or 0)
+        except Exception:
+            return
+        if total <= 0:
+            return
+
+        backend = str(info.get("backend", "")).strip().lower() or "unknown"
+        self.detected_fs_total_bytes = total
+        self.detected_fs_backend = backend
+        label = self._backend_display_name(backend)
+        self.fs_profile_key = "auto"
+        self.fs_profile_name = ("Automatikus" if self.lang == "HU" else "Auto") + f" ({label})"
+        self.spiffs_capacity_kb = max(1, total // 1024)
+
     def toggle_lang(self):
         self.lang = "EN" if self.lang == "HU" else "HU"
         self.title(f"{self.tr('title')} v{APP_VERSION}")
-        self.lbl_port.config(text=self.tr("port"))
-        self.btn_ports.config(text=self.tr("refresh_ports"))
-        self.btn_maint.config(text=self.tr("maintenance"))
+        self.lbl_ip.config(text=self.tr("radio_ip"))
+        self.btn_maint.config(text=self.tr("connect"))
         self.btn_lang.config(text=self.tr("lang"))
         self.btn_capacity.config(text=self.tr("spiffs_capacity"))
+        self.btn_connect_cancel.config(text=self.tr("connect_cancel"))
         for key, label, _ in self._fs_profile_options():
             if key == self.fs_profile_key and key != "custom":
                 self.fs_profile_name = label
                 break
+        if self.fs_profile_key == "auto":
+            label = self._backend_display_name(self.detected_fs_backend)
+            self.fs_profile_name = ("Automatikus" if self.lang == "HU" else "Auto") + f" ({label})"
         if self.fs_profile_key == "custom":
             self.fs_profile_name = "Egyedi" if self.lang == "HU" else "Custom"
         self.btn_list.config(text=self.tr("list"))
@@ -1407,6 +1382,7 @@ class App(tk.Tk):
         self.tree.heading("#0", text=self.tr("tree"))
         self.tree.heading("type", text=self.tr("type"))
         self.tree.heading("size", text=self.tr("size"))
+        self.tree.heading("modified", text=self.tr("modified"))
         self.tree.tag_configure("root_link")
         self.left_panel.config(text=self.tr("tree"))
         self.queue_panel.config(text=self.tr("queue"))
@@ -1430,34 +1406,51 @@ class App(tk.Tk):
                 break
         apply_theme(self, self._dark_mode)
         self.update_fs_estimate()
-<<<<<<< Updated upstream
-<<<<<<<< Updated upstream:LittleFS_manager/LittleFS-SPIFFS_Partition_Manager_v0.4.py
         self.populate_tree(restore_state=self._capture_tree_state())
-========
->>>>>>>> Stashed changes:LittleFS_manager/LittleFS-SPIFFS_Partition_Manager_v0.3.4.py
-=======
-        self.populate_tree(restore_state=self._capture_tree_state())
->>>>>>> Stashed changes
         self.refresh_queue_tree()
         self.after_idle(self._on_window_layout_change)
 
     def _start_connection_progress(self):
         try:
+            self.connecting = True
+            self.connect_cancel_event.clear()
             self.connection_progress_label.config(text=self.tr("status_connecting"))
             self.connection_progress_row.pack(fill="x", before=self.main_pane)
             self.connection_progress.start(12)
+            self.btn_connect_cancel.config(state=tk.NORMAL)
         except Exception:
             pass
 
     def _stop_connection_progress(self):
         try:
+            self.connecting = False
+            self.connect_cancel_event.clear()
             self.connection_progress.stop()
             self.connection_progress_row.pack_forget()
+            self.btn_connect_cancel.config(state=tk.DISABLED)
         except Exception:
             pass
 
+    def cancel_connect(self):
+        if not self.connecting:
+            return
+        self.connect_cancel_event.set()
+        self.set_status(self.tr("status_connect_cancelled"))
+
     def set_status(self, text: str):
         self.after(0, lambda: self.status_var.set(text))
+
+    def _set_busy_cursor(self, busy: bool):
+        cursor = "watch" if busy else ""
+
+        def apply_cursor():
+            try:
+                self.configure(cursor=cursor)
+                self.update_idletasks()
+            except Exception:
+                pass
+
+        self.after(0, apply_cursor)
 
     def _localize_error(self, text: str) -> str:
         if self.lang != "HU":
@@ -1489,7 +1482,7 @@ class App(tk.Tk):
             out = out.replace(src, dst)
         return out
 
-    def run_job(self, fn, done=None):
+    def run_job(self, fn, done=None, on_finally=None):
         if self.worker and self.worker.is_alive():
             self.show_warning(self.tr("warning"), self.tr("queue_running"))
             return False
@@ -1499,6 +1492,8 @@ class App(tk.Tk):
                 result = fn()
                 if done:
                     self.after(0, lambda: done(result))
+            except UserCancelled:
+                self.set_status(self.tr("status_connect_cancelled"))
             except Exception as e:
                 last_step = self.status_var.get()
                 self.after(0, lambda: self.show_error(self.tr("error"), f"{self._localize_error(str(e))}\n\n{self.tr('last_step')}: {last_step}"))
@@ -1506,25 +1501,15 @@ class App(tk.Tk):
                 self.after(0, self._reset_queue_runtime_labels)
             finally:
                 self.after(0, self._stop_connection_progress)
+                if on_finally:
+                    self.after(0, on_finally)
 
         self.worker = threading.Thread(target=wrap, daemon=True)
         self.worker.start()
         return True
 
-    def refresh_ports(self):
-        if list_ports is None:
-            return
-        ports = []
-        for p in list_ports.comports():
-            ports.append(f"{p.device} - {p.description}")
-        self.port_combo["values"] = ports or [self.tr("ports_none")]
-        self.port_var.set(ports[0] if ports else self.tr("ports_none"))
-
-    def _selected_port(self) -> str:
-        value = self.port_var.get().strip()
-        if not value or value == self.tr("ports_none"):
-            raise ProtoError(self.tr("ports_none"))
-        return value.split(" - ", 1)[0].strip()
+    def _new_client_for_selected_mode(self):
+        return HttpSpiFFSClient()
 
     def ensure_connected(self):
         if not self.client.ser:
@@ -1533,19 +1518,25 @@ class App(tk.Tk):
     def connect(self):
         def job():
             self.set_status(self.tr("status_connecting"))
-            self.client.connect(self._selected_port())
-            self.set_status(self.tr("status_maintenance"))
-            self.client.begin_maintenance()
+            self.client.disconnect()
+            self.client = self._new_client_for_selected_mode()
+            self.client.connect(self.ip_var.get(), cancel_event=self.connect_cancel_event)
+            if self.connect_cancel_event.is_set():
+                raise UserCancelled("connect cancelled")
             self.client.ping()
+            fs_info = self.client.get_fs_info()
             self.set_status(self.tr("status_listing"))
-            return self.client.list_files()
+            return self.client.list_files(), fs_info
 
-        def done(files):
+        def done(result):
+            files, fs_info = result
+            self._apply_remote_fs_info(fs_info)
             files = self._apply_known_remote_paths(files)
             self.files = files
             self._rebuild_known_remote_dirs(files)
             self.populate_tree()
-            self.set_status(self.tr("maintenance_ok"))
+            self.update_fs_estimate()
+            self.set_status(self.tr("wifi_connected"))
 
         self._start_connection_progress()
         if not self.run_job(job, done):
@@ -1555,28 +1546,20 @@ class App(tk.Tk):
         if self.queue_running:
             self.cancel_queue()
         self.client.disconnect()
+        self.detected_fs_total_bytes = None
+        self.detected_fs_backend = None
         self.set_status(self.tr("status_ready"))
         self._reset_queue_runtime_labels()
-
-    def enter_maintenance(self):
-        def job():
-            self.set_status(self.tr("status_maintenance"))
-            self.client.begin_maintenance()
-            self.client.ping()
-            return True
-
-        def done(_):
-            self.set_status(self.tr("maintenance_ok"))
-
-        self.run_job(job, done)
 
     def refresh_list(self):
         def job():
             self.ensure_connected()
             self.set_status(self.tr("status_listing"))
-            return self.client.list_files()
+            return self.client.list_files(), self.client.get_fs_info()
 
-        def done(files):
+        def done(result):
+            files, fs_info = result
+            self._apply_remote_fs_info(fs_info)
             files = self._apply_known_remote_paths(files)
             self.files = files
             self._rebuild_known_remote_dirs(files)
@@ -1660,7 +1643,7 @@ class App(tk.Tk):
                 self._remember_remote_path(fixed_path, size, False)
             key = (fixed_path, is_dir)
             if key not in seen:
-                out.append(RemoteFile(fixed_path, size, is_dir))
+                out.append(RemoteFile(fixed_path, size, is_dir, getattr(rf, "modified_ts", None)))
                 seen.add(key)
         for d in sorted(self.known_remote_dir_paths, key=lambda x: (x.count("/"), x.lower())):
             if d != "/" and (d, True) not in seen:
@@ -1720,7 +1703,7 @@ class App(tk.Tk):
     def populate_tree(self, restore_state: dict | None = None):
         self.tree.delete(*self.tree.get_children())
         self.tree_item_info = {}
-        root_item_id = self.tree.insert("", "end", text="..", values=(self.tr("root"), ""), tags=("root_link",))
+        root_item_id = self.tree.insert("", "end", text="..", values=(self.tr("root"), "", ""), tags=("root_link",))
         self.tree_item_info[root_item_id] = ("/", False)
 
         # Some ESP32 SPIFFS/LittleFS list implementations return only FILE rows,
@@ -1733,7 +1716,7 @@ class App(tk.Tk):
             path = normalize_remote_path(rf.path)
             if path == "/":
                 continue
-            entry_by_path[path] = RemoteFile(path, rf.size, getattr(rf, "is_dir", False))
+            entry_by_path[path] = RemoteFile(path, rf.size, getattr(rf, "is_dir", False), getattr(rf, "modified_ts", None))
 
         def ensure_dir(path: str) -> str:
             path = normalize_remote_path(path)
@@ -1742,7 +1725,7 @@ class App(tk.Tk):
             parent_path = normalize_remote_path("/".join(path.rstrip("/").split("/")[:-1]) or "/")
             parent_id = ensure_dir(parent_path) if parent_path != path else ""
             name = path.rstrip("/").split("/")[-1]
-            item_id = self.tree.insert(parent_id, "end", text=name, values=(self.tr("folder"), ""))
+            item_id = self.tree.insert(parent_id, "end", text=name, values=(self.tr("folder"), "", ""))
             nodes[path] = item_id
             self.tree_item_info[item_id] = (path, False)
             return item_id
@@ -1764,7 +1747,7 @@ class App(tk.Tk):
             parent_path = normalize_remote_path("/".join(path.split("/")[:-1]) or "/")
             parent_id = ensure_dir(parent_path)
             name = parts[-1]
-            item_id = self.tree.insert(parent_id, "end", text=name, values=(self.tr("file"), fmt_size(rf.size)))
+            item_id = self.tree.insert(parent_id, "end", text=name, values=(self.tr("file"), fmt_size(rf.size), fmt_mtime(getattr(rf, "modified_ts", None))))
             nodes[path] = item_id
             self.tree_item_info[item_id] = (path, True)
 
@@ -1964,6 +1947,8 @@ class App(tk.Tk):
         return sum(rf.size for rf in self.files)
 
     def _estimated_total_bytes(self) -> int | None:
+        if self.detected_fs_total_bytes is not None and self.detected_fs_total_bytes > 0:
+            return self.detected_fs_total_bytes
         if self.spiffs_capacity_kb is None:
             return None
         return self.spiffs_capacity_kb * 1024
@@ -2028,6 +2013,39 @@ class App(tk.Tk):
     def _is_critical_spiffs_write_error(self, error_text: str) -> bool:
         return is_probable_spiffs_open_failed(error_text)
 
+    def _recover_wifi_connection(self, max_wait_seconds: float = RESTORE_RECOVERY_TIMEOUT) -> bool:
+        deadline = time.time() + max(2.0, max_wait_seconds)
+        while time.time() < deadline:
+            try:
+                self.client._request("GET", "/api/fs/ping", timeout=3.0)
+                return True
+            except Exception:
+                pass
+            try:
+                connect_timeout = min(8.0, max(2.0, deadline - time.time()))
+                self.client.connect(self.ip_var.get(), timeout=connect_timeout)
+                self.client._request("GET", "/api/fs/ping", timeout=3.0)
+                return True
+            except Exception:
+                time.sleep(0.6)
+        return False
+
+    def _prepare_radio_for_restore(self) -> bool:
+        # Stop active playback so files (especially fonts/assets) are less likely
+        # to stay open while restore is replacing them.
+        try:
+            self.client._request("GET", "/?stop=1", timeout=5.0)
+            time.sleep(0.35)
+            return True
+        except Exception:
+            return False
+
+    def _resume_radio_after_restore(self):
+        try:
+            self.client._request("GET", "/?start=1", timeout=6.0)
+        except Exception:
+            pass
+
     def start_queue(self):
         if self.queue_running:
             self.show_warning(self.tr("warning"), self.tr("queue_running"))
@@ -2047,14 +2065,22 @@ class App(tk.Tk):
         self.set_status(self.tr("status_uploading"))
 
         def job():
+            stop_sent = False
             try:
                 self.ensure_connected()
+                stop_sent = self._prepare_radio_for_restore()
                 self._run_upload_queue()
-                return True
+                return stop_sent
             finally:
                 self.queue_running = False
 
-        def done(_):
+        def restore_controls_after_job():
+            # If queue startup fails before done() runs (for example not connected),
+            # make sure controls are not left in a disabled state.
+            if not self.queue_running:
+                self._set_queue_controls_enabled(True)
+
+        def done(stop_sent):
             self._set_queue_controls_enabled(True)
             self._clear_completed_tasks_now()
             self.refresh_queue_tree()
@@ -2065,11 +2091,13 @@ class App(tk.Tk):
                 self.set_status(self.tr("queue_cancelled_done"))
             else:
                 self.set_status(self.tr("queue_finished"))
+            if AUTO_RESUME_AFTER_RESTORE and stop_sent:
+                self._resume_radio_after_restore()
             self.cancel_event.clear()
             self.after(50, lambda: self.refresh_both_views(background=True))
             self._reset_queue_runtime_labels(keep_status=True)
 
-        started = self.run_job(job, done)
+        started = self.run_job(job, done, on_finally=restore_controls_after_job)
         if not started:
             self.queue_running = False
             self._set_queue_controls_enabled(True)
@@ -2216,6 +2244,8 @@ class App(tk.Tk):
                 task.error = self._localize_error(raw_error)
                 last_error = e
                 if attempt < task.max_retries and not self.cancel_event.is_set():
+                    if is_probable_transient_upload_disconnect(raw_error):
+                        self._recover_wifi_connection()
                     task.status = "retrying"
                     self.set_status(f"{self.tr('queue_retrying')}: {task.remote_path} | {self._localize_error(raw_error)}")
                     self.after(0, self.refresh_queue_tree)
@@ -2256,64 +2286,77 @@ class App(tk.Tk):
             done(self.client.list_files() if self.client.ser else self.files)
 
     def backup_zip(self):
-        out = filedialog.asksaveasfilename(title=self.tr("save_backup_title"), defaultextension=".zip", filetypes=[("ZIP", "*.zip")], initialfile="myradio_spiffs_mentes.zip" if self.lang == "HU" else "myradio_spiffs_backup.zip", parent=self._prepare_dialog_parent())
+        stamp = time.strftime("%Y-%m-%d-%H-%M-%S")
+        initial_name = f"radio_FS_mentes_{stamp}.zip" if self.lang == "HU" else f"radio_FS_backup_{stamp}.zip"
+        out = filedialog.asksaveasfilename(
+            title=self.tr("save_backup_title"),
+            defaultextension=".zip",
+            filetypes=[("ZIP", "*.zip")],
+            initialfile=initial_name,
+            parent=self._prepare_dialog_parent(),
+        )
         if not out:
             return
         out_path = Path(out)
 
         def job():
             self.ensure_connected()
-            files = self._apply_known_remote_paths(self.client.list_files())
-            if not files:
-                raise ProtoError(self.tr("no_files"))
-            self.set_status(self.tr("status_saving"))
-            backup_files = [rf for rf in files if not getattr(rf, "is_dir", False)]
-            if not backup_files:
-                raise ProtoError(self.tr("no_files"))
-            backup_dirs = {normalize_remote_path(rf.path) for rf in files if getattr(rf, "is_dir", False)}
-            for rf in backup_files:
-                parts = [part for part in normalize_remote_path(rf.path).strip("/").split("/") if part]
-                current = ""
-                for part in parts[:-1]:
-                    current += "/" + part
-                    backup_dirs.add(current)
-            total_files = len(backup_files)
-            total_bytes = sum(rf.size for rf in backup_files)
-            transferred = 0
-            start = time.time()
-            manifest = []
-            self.after(0, self._reset_transfer_metrics)
-            with zipfile.ZipFile(out_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-                for dir_path in sorted(backup_dirs, key=lambda x: (x.count("/"), x.lower())):
-                    arcname = dir_path.strip("/")
-                    if arcname:
-                        zf.writestr(arcname.rstrip("/") + "/", b"")
-                for idx, rf in enumerate(backup_files, 1):
-                    remote_path = normalize_remote_path(rf.path)
-                    expected_size = int(getattr(rf, "size", 0))
-                    arcname = remote_path.lstrip("/")
-                    data = self.client.read_file_retry(remote_path, expected_size=expected_size)
-                    zf.writestr(arcname, data)
-                    manifest.append((remote_path, arcname, expected_size))
-                    transferred += len(data)
-                    self._set_transfer_metrics(Path(remote_path).name, idx, total_files, transferred, total_bytes, start)
-                    self.set_status(f"{self.tr('status_saving')} {idx}/{total_files} - {remote_path}")
-
-            if self.verify_backup_var.get():
+            stop_sent = self._prepare_radio_for_restore()
+            try:
+                files = self._apply_known_remote_paths(self.client.list_files())
+                if not files:
+                    raise ProtoError(self.tr("no_files"))
+                self.set_status(self.tr("status_saving"))
+                backup_files = [rf for rf in files if not getattr(rf, "is_dir", False)]
+                if not backup_files:
+                    raise ProtoError(self.tr("no_files"))
+                backup_dirs = {normalize_remote_path(rf.path) for rf in files if getattr(rf, "is_dir", False)}
+                for rf in backup_files:
+                    parts = [part for part in normalize_remote_path(rf.path).strip("/").split("/") if part]
+                    current = ""
+                    for part in parts[:-1]:
+                        current += "/" + part
+                        backup_dirs.add(current)
+                total_files = len(backup_files)
+                total_bytes = sum(rf.size for rf in backup_files)
                 transferred = 0
                 start = time.time()
+                manifest = []
                 self.after(0, self._reset_transfer_metrics)
-                with zipfile.ZipFile(out_path, "r") as zf:
-                    for idx, (remote_path, arcname, expected_size) in enumerate(manifest, 1):
-                        saved_data = zf.read(arcname)
-                        live_data = self.client.read_file_retry(remote_path, expected_size=expected_size)
-                        if live_data != saved_data:
-                            raise ProtoError(self.tr("backup_verify_failed").format(path=remote_path))
-                        transferred += len(saved_data)
+                with zipfile.ZipFile(out_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+                    for dir_path in sorted(backup_dirs, key=lambda x: (x.count("/"), x.lower())):
+                        arcname = dir_path.strip("/")
+                        if arcname:
+                            zf.writestr(arcname.rstrip("/") + "/", b"")
+                    for idx, rf in enumerate(backup_files, 1):
+                        remote_path = normalize_remote_path(rf.path)
+                        expected_size = int(getattr(rf, "size", 0))
+                        arcname = remote_path.lstrip("/")
+                        data = self.client.read_file_retry(remote_path, expected_size=expected_size)
+                        zf.writestr(arcname, data)
+                        manifest.append((remote_path, arcname, expected_size))
+                        transferred += len(data)
                         self._set_transfer_metrics(Path(remote_path).name, idx, total_files, transferred, total_bytes, start)
-                        self.set_status(f"{self.tr('status_verifying')} {idx}/{total_files} - {remote_path}")
-                return "verified"
-            return "done"
+                        self.set_status(f"{self.tr('status_saving')} {idx}/{total_files} - {remote_path}")
+
+                if self.verify_backup_var.get():
+                    transferred = 0
+                    start = time.time()
+                    self.after(0, self._reset_transfer_metrics)
+                    with zipfile.ZipFile(out_path, "r") as zf:
+                        for idx, (remote_path, arcname, expected_size) in enumerate(manifest, 1):
+                            saved_data = zf.read(arcname)
+                            live_data = self.client.read_file_retry(remote_path, expected_size=expected_size)
+                            if live_data != saved_data:
+                                raise ProtoError(self.tr("backup_verify_failed").format(path=remote_path))
+                            transferred += len(saved_data)
+                            self._set_transfer_metrics(Path(remote_path).name, idx, total_files, transferred, total_bytes, start)
+                            self.set_status(f"{self.tr('status_verifying')} {idx}/{total_files} - {remote_path}")
+                    return "verified"
+                return "done"
+            finally:
+                if AUTO_RESUME_AFTER_RESTORE and stop_sent:
+                    self._resume_radio_after_restore()
 
         def done(result):
             self._reset_transfer_metrics()
@@ -2333,36 +2376,55 @@ class App(tk.Tk):
         def job():
             self.ensure_connected()
             self.set_status(self.tr("status_restoring"))
+            stop_sent = self._prepare_radio_for_restore()
             current = self._apply_known_remote_paths(self.client.list_files())
             current_files = {normalize_remote_path(rf.path) for rf in current if not getattr(rf, "is_dir", False)}
             current_dirs = {normalize_remote_path(rf.path) for rf in current if getattr(rf, "is_dir", False)}
             with zipfile.ZipFile(zp, "r") as zf:
-                names = [n for n in zf.namelist() if not n.endswith("/")]
+                infos = [info for info in zf.infolist() if not info.is_dir()]
+                names = [info.filename for info in infos]
                 restore_paths = {normalize_remote_path("/" + name) for name in names}
                 total_files = max(1, len(names))
-                total_bytes = sum(len(zf.read(name)) for name in names) if names else 0
+                total_bytes = sum(int(info.file_size) for info in infos) if infos else 0
                 transferred = 0
                 start = time.time()
                 self.after(0, self._reset_transfer_metrics)
-                for idx, name in enumerate(names, 1):
+                for idx, info in enumerate(infos, 1):
+                    name = info.filename
                     data = zf.read(name)
                     remote_path = normalize_remote_path("/" + name)
                     self._ensure_remote_parent_dirs(remote_path)
-                    if remote_path in current_files:
+                    uploaded = 0
+                    for attempt in range(TRANSIENT_UPLOAD_RETRIES + 1):
+                        chunk_size = RESTORE_UPLOAD_ATTEMPT_CHUNKS[min(attempt, len(RESTORE_UPLOAD_ATTEMPT_CHUNKS) - 1)]
                         try:
-                            self.client.delete_file(remote_path)
-                            current_files.discard(remote_path)
-                        except Exception:
-                            pass
-                    for _, _, uploaded in self.client.write_file(
-                        remote_path,
-                        data,
-                        chunk_sizes=RESTORE_CHUNK_SIZES,
-                        write_data_timeout=WRITE_DATA_TIMEOUT_RESTORE,
-                        inter_chunk_delay=RESTORE_INTER_CHUNK_DELAY,
-                    ):
-                        self._set_transfer_metrics(Path(name).name, idx, total_files, transferred + uploaded, total_bytes, start)
-                        self.set_status(f"{self.tr('status_restoring')} {idx}/{total_files} - {remote_path}")
+                            for _, _, uploaded in self.client.write_file(
+                                remote_path,
+                                data,
+                                chunk_sizes=(chunk_size,),
+                                write_data_timeout=90.0,
+                                inter_chunk_delay=0.0,
+                            ):
+                                self._set_transfer_metrics(Path(name).name, idx, total_files, transferred + uploaded, total_bytes, start)
+                                self.set_status(f"{self.tr('status_restoring')} {idx}/{total_files} - {remote_path}")
+                            break
+                        except Exception as e:
+                            raw_error = str(e)
+                            transient = is_probable_transient_upload_disconnect(raw_error)
+                            if not transient or attempt >= TRANSIENT_UPLOAD_RETRIES:
+                                raise
+                            self.set_status(
+                                f"{self.tr('queue_retrying')}: {remote_path} ({attempt + 1}/{TRANSIENT_UPLOAD_RETRIES}) | {self._localize_error(raw_error)}"
+                            )
+                            recovered = self._recover_wifi_connection()
+                            if recovered:
+                                self._prepare_radio_for_restore()
+                            time.sleep(0.4 * (attempt + 1))
+                    # Remember the exact restored path immediately.  Some firmwares
+                    # briefly return basename-only rows right after a restore; this keeps
+                    # the first GUI refresh in the same folder structure as the ZIP.
+                    self._remember_remote_path(remote_path, len(data), False)
+                    time.sleep(RESTORE_FILE_SETTLE_DELAY)
                     transferred += len(data)
                     current_files.discard(remote_path)
 
@@ -2384,11 +2446,25 @@ class App(tk.Tk):
                     self._forget_remote_path_tree(target)
                 except Exception:
                     pass
-            return True
+            # Give the ESP32 webserver/filesystem a short moment to finish exposing
+            # the final directory view, then return a fresh list for the GUI.
+            time.sleep(0.4)
+            try:
+                return self.client.list_files(), stop_sent
+            except Exception:
+                return list(self.files), stop_sent
 
-        def done(_):
+        def done(result):
+            files, stop_sent = result
             self._reset_transfer_metrics()
-            self.refresh_both_views(background=True)
+            files = self._apply_known_remote_paths(files)
+            self.files = files
+            self._rebuild_known_remote_dirs(files)
+            self.populate_tree()
+            self.refresh_queue_tree()
+            self.update_fs_estimate()
+            if AUTO_RESUME_AFTER_RESTORE and stop_sent:
+                self._resume_radio_after_restore()
             self.show_info(self.tr("done"), self.tr("restore_done"))
 
         self.run_job(job, done)
@@ -2423,11 +2499,11 @@ class App(tk.Tk):
     def download_selected(self):
         selection = self.tree.selection()
         if not selection:
-            self.show_warning(self.tr("warning"), self.tr("tree_no_selection"))
+            self.show_warning(self.tr("warning"), self.tr("download_select_file"))
             return
         path, is_file = self._item_remote_path(selection[0])
         if not is_file:
-            self.show_warning(self.tr("warning"), self.tr("tree_no_selection"))
+            self.show_warning(self.tr("warning"), self.tr("download_select_file"))
             return
         out = filedialog.asksaveasfilename(title=self.tr("save_selected_title"), initialfile=Path(path).name, parent=self._prepare_dialog_parent())
         if not out:
@@ -2459,71 +2535,90 @@ class App(tk.Tk):
             self.show_warning(self.tr("warning"), self.tr("root_delete_blocked"))
             return
 
+        preview_paths = [normalize_remote_path(path) for path, _ in selected_items]
+        preview_limit = 6
+        preview_lines = preview_paths[:preview_limit]
+        if len(preview_paths) > preview_limit:
+            preview_lines.append("...")
+        preview_text = "\n".join(preview_lines)
+        if not self.ask_yes_no(
+            self.tr("warning"),
+            self.tr("delete_confirm").format(count=len(preview_paths), items=preview_text),
+        ):
+            return
+
         def job():
             self.ensure_connected()
-            files = self._apply_known_remote_paths(self.client.list_files())
-            all_file_paths = [f.path for f in files if not getattr(f, "is_dir", False)]
-            all_dir_paths = [f.path for f in files if getattr(f, "is_dir", False)]
-            target_files = set()
-            target_dirs = set()
-            requested_paths = []
-            for path, is_file in selected_items:
-                path = normalize_remote_path(path)
-                requested_paths.append((path, is_file))
-                if is_file:
-                    target_files.add(path)
-                else:
-                    prefix = path.rstrip("/") + "/"
-                    for file_path in all_file_paths:
-                        if file_path == path or file_path.startswith(prefix):
-                            target_files.add(file_path)
-                    for dir_path in all_dir_paths:
-                        if dir_path == path or dir_path.startswith(prefix):
-                            target_dirs.add(dir_path)
-                    target_dirs.add(path)
+            stop_sent = self._prepare_radio_for_restore()
+            self.set_status(self.tr("status_deleting"))
+            try:
+                files = self._apply_known_remote_paths(self.client.list_files())
+                all_file_paths = [f.path for f in files if not getattr(f, "is_dir", False)]
+                all_dir_paths = [f.path for f in files if getattr(f, "is_dir", False)]
+                target_files = set()
+                target_dirs = set()
+                requested_paths = []
+                for path, is_file in selected_items:
+                    path = normalize_remote_path(path)
+                    requested_paths.append((path, is_file))
+                    if is_file:
+                        target_files.add(path)
+                    else:
+                        prefix = path.rstrip("/") + "/"
+                        for file_path in all_file_paths:
+                            if file_path == path or file_path.startswith(prefix):
+                                target_files.add(file_path)
+                        for dir_path in all_dir_paths:
+                            if dir_path == path or dir_path.startswith(prefix):
+                                target_dirs.add(dir_path)
+                        target_dirs.add(path)
 
-            for target in sorted(target_files, key=lambda x: (x.count("/"), x.lower()), reverse=True):
-                self.client.delete_file(target)
-
-            dir_errors = []
-            for target in sorted(target_dirs, key=lambda x: (x.count("/"), x.lower()), reverse=True):
-                if target == "/":
-                    continue
-                try:
+                for target in sorted(target_files, key=lambda x: (x.count("/"), x.lower()), reverse=True):
                     self.client.delete_file(target)
-                except Exception as delete_error:
-                    try:
-                        self.client.rmdir(target)
-                    except Exception as rmdir_error:
-                        dir_errors.append(f"{target}: {rmdir_error or delete_error}")
 
-            for path, _ in requested_paths:
-                self._forget_remote_path_tree(path)
-            remaining = self._apply_known_remote_paths(self.client.list_files())
-            remaining_paths = [f.path for f in remaining]
-            still_present = []
-            for path, is_file in requested_paths:
-                if is_file:
-                    if path in remaining_paths:
-                        still_present.append(path)
-                else:
-                    prefix = path.rstrip("/") + "/"
-                    for remote_path in remaining_paths:
-                        if remote_path == path or remote_path.startswith(prefix):
-                            still_present.append(remote_path)
-                            break
-            if still_present:
-                detail = still_present[0]
-                if dir_errors:
-                    detail += " | " + dir_errors[0]
-                raise ProtoError(f"delete verification failed: {detail}")
-            return True
+                dir_errors = []
+                for target in sorted(target_dirs, key=lambda x: (x.count("/"), x.lower()), reverse=True):
+                    if target == "/":
+                        continue
+                    try:
+                        self.client.delete_file(target)
+                    except Exception as delete_error:
+                        try:
+                            self.client.rmdir(target)
+                        except Exception as rmdir_error:
+                            dir_errors.append(f"{target}: {rmdir_error or delete_error}")
+
+                for path, _ in requested_paths:
+                    self._forget_remote_path_tree(path)
+                remaining = self._apply_known_remote_paths(self.client.list_files())
+                remaining_paths = [f.path for f in remaining]
+                still_present = []
+                for path, is_file in requested_paths:
+                    if is_file:
+                        if path in remaining_paths:
+                            still_present.append(path)
+                    else:
+                        prefix = path.rstrip("/") + "/"
+                        for remote_path in remaining_paths:
+                            if remote_path == path or remote_path.startswith(prefix):
+                                still_present.append(remote_path)
+                                break
+                if still_present:
+                    detail = still_present[0]
+                    if dir_errors:
+                        detail += " | " + dir_errors[0]
+                    raise ProtoError(f"delete verification failed: {detail}")
+                return True
+            finally:
+                if AUTO_RESUME_AFTER_RESTORE and stop_sent:
+                    self._resume_radio_after_restore()
 
         def done(_):
             self.refresh_both_views(background=True)
             self.show_info(self.tr("done"), self.tr("delete_done"))
 
-        self.run_job(job, done)
+        self._set_busy_cursor(True)
+        self.run_job(job, done, on_finally=lambda: self._set_busy_cursor(False))
 
     def reboot_radio(self):
         def job():

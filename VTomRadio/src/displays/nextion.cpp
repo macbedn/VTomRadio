@@ -109,6 +109,12 @@ void Nextion::processQueue(){
         bootString(buf);
         break;
       }
+      case BOOTWIFISWITCH:
+        bootString("Wi-Fi switching...");
+        break;
+      case BOOTWIFISCAN:
+        bootString("Scanning Wi-Fi...");
+        break;
       case NEWSTATION: {
         newNameset(config.station.name);
         bitrate(config.station.bitrate);
@@ -208,7 +214,7 @@ void Nextion::loop() {
             display.putRequest(NEWMODE, TIMEZONE);
           }
           if(strcmp(scanBuf, "sys") == 0) {
-            putcmd("smartstart.val", config.store.smartstart==2?0:1);
+            putcmd("smartstart.val", config.isSmartStartEnabled() ? 1 : 0);
             putcmd("audioinfo.val", config.store.audioinfo);
             display.putRequest(NEWMODE, SETTINGS);
           }
@@ -274,7 +280,7 @@ void Nextion::loop() {
           config.saveValue(&config.store.audioinfo, static_cast<bool>(scanDigit));
         }
         if (sscanf(rxbuf, "smartstart=%d", &scanDigit) == 1){
-          config.saveValue(&config.store.smartstart, static_cast<uint8_t>(scanDigit==0?2:1));
+          config.setSmartStartEnabled(scanDigit != 0);
         }
         if (sscanf(rxbuf, "addssid=%s", scanBuf) == 1){
           wifisettings+=(String(scanBuf)+"\t");

@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>VTom Radio - Theme Editor</title>
+  <script type="text/javascript" src="variables.js"></script>
+  <link rel="stylesheet" href="theme.css" type="text/css" />
+  <link rel="stylesheet" href="style.css" type="text/css" />
+  <style>
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+
+    .theme-page {
+      max-width: 580px;
+      margin: 0 auto;
+      padding: 0 12px 12px 12px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .theme-shell {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 8px 12px 0 0;
+    }
+
+    #themeSection {
+      margin: 10px 0;
+      padding: 22px 16px 16px 16px;
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .theme-actions {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      width: 100%;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--section-border);
+      margin-bottom: 8px;
+    }
+
+    .theme-actions-col {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+    }
+
+    .theme-actions-col-right {
+      align-items: flex-end;
+    }
+
+    .theme-actions-col .fb {
+      width: 226px;
+      box-sizing: border-box;
+      text-align: center;
+      white-space: nowrap;
+      margin: 0;
+    }
+
+    .theme-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 4px 6px 2px 2px;
+      scrollbar-color: var(--section-border) var(--main-bg-color);
+      scrollbar-width: thin;
+    }
+
+    .theme-scroll::-webkit-scrollbar {
+      width: 5px;
+      height: 8px;
+      background-color: var(--main-bg-color);
+    }
+
+    .theme-scroll::-webkit-scrollbar-thumb {
+      background: var(--section-border);
+    }
+
+    .theme-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .theme-item {
+      background: var(--odd-bg-color);
+      border: 1px solid var(--input-border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .theme-item label {
+      font-size: 14px;
+      color: var(--main-text-color);
+      text-transform: none;
+    }
+
+    .theme-item input[type="color"] {
+      width: 52px;
+      height: 32px;
+      border: 0;
+      background: transparent;
+      padding: 0;
+    }
+
+    .theme-item-controls { display: flex; align-items: center; gap: 6px; }
+    .theme-item .mini-btn { border: 1px solid #3a3a3a; background: #222; color: #b9b9b9; height: 26px; min-width: 26px; border-radius: 4px; cursor: pointer; font-size: 14px; }
+    .theme-item .mini-btn:hover { color: #fff; border-color: #606060; }
+
+    .theme-status {
+      min-height: 20px;
+      color: #8fb1d5;
+      text-align: center;
+      padding: 4px 0 6px 0;
+    }
+
+    .theme-status.error { color: #ff8e8e; }
+
+    @media (max-width: 560px) {
+      .theme-page {
+        padding: 0 6px 8px 6px;
+      }
+
+      .theme-shell {
+        padding: 8px 4px 0 0;
+      }
+
+      #themeSection {
+        padding: 22px 10px 10px 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="theme-page">
+    <div id="logo" class="ls"></div>
+    <h2 class="pagetitle" style="padding:0;">Theme Editor</h2>
+    <div class="theme-shell">
+      <section id="themeSection">
+        <div class="title"><span>colors</span></div>
+      <div class="theme-actions">
+        <div class="theme-actions-col">
+          <button class="fb local" id="reloadBtn">Load from device</button>
+          <button class="fb local" id="saveBtn">Save</button>
+          <button class="fb local" id="resetBtn">Reset defaults</button>
+        </div>
+        <div class="theme-actions-col theme-actions-col-right">
+          <button class="fb local" id="importBtn">Load from CSV</button>
+          <input type="file" id="csvFileInput" accept=".csv,text/csv" style="display:none">
+          <button class="fb local" id="exportBtn">Export CSV</button>
+          <button class="fb local" id="backBtn">Back to settings</button>
+        </div>
+      </div>
+      <div id="status" class="theme-status"></div>
+      <div class="theme-scroll">
+        <div id="themeGrid" class="theme-grid"></div>
+      </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const groups = [
+      { label: "SCREEN", items: [
+        { k: "background",      lbl: "BACKGROUND" }
+      ]},
+      { label: "META", items: [
+        { k: "meta",            lbl: "STATION_NAME" },
+        { k: "metabg",          lbl: "STATION_BG" },
+        { k: "metafill",        lbl: "STATION_FILL" },
+        { k: "title1",          lbl: "SNG_TITLE_1" },
+        { k: "title2",          lbl: "SNG_TITLE_2" },
+        { k: "bitrate",         lbl: "BITRATE" }
+      ]},
+      { label: "WEATHER", items: [
+        { k: "weather",         lbl: "WEATHER" }
+      ]},
+      { label: "VOLUME SCREEN", items: [
+        { k: "digit",           lbl: "DIGITS" }
+      ]},
+      { label: "NAMEDAY", items: [
+        { k: "nameday_label",   lbl: "NAMEDAY_LABEL" },
+        { k: "nameday",         lbl: "NAMEDAY" }
+      ]},
+      { label: "CLOCK, DATE", items: [
+        { k: "clock",           lbl: "CLOCK" },
+        { k: "clockbg",         lbl: "CLOCK_BG" },
+        { k: "seconds",         lbl: "SECONDS" },
+        { k: "div",             lbl: "DIVIDER" },
+        { k: "date",            lbl: "DATE" }
+      ]},
+      { label: "VU WIDGET", items: [
+        { k: "vumax",           lbl: "VU_MAX" },
+        { k: "vumid",           lbl: "VU_MID" },
+        { k: "vumin",           lbl: "VU_MIN" },
+        { k: "vupeak",          lbl: "VU_PEAK" },
+        { k: "vulrbox",         lbl: "VU_LRBOX" },
+        { k: "vulrtext",        lbl: "VU_LRTEXT" }
+      ]},
+      { label: "VOLUME WIDGET", items: [
+        { k: "vol_bg",          lbl: "VOL_BG" },
+        { k: "vol_border",      lbl: "VOL_BORDER" },
+        { k: "vol_inactive",    lbl: "VOL_INACTIVE" },
+        { k: "vol_low",         lbl: "VOL_LOW" },
+        { k: "vol_mid",         lbl: "VOL_MID" },
+        { k: "vol_high",        lbl: "VOL_HIGH" },
+        { k: "vol_icon",        lbl: "VOL_ICON" }
+      ]},
+      { label: "WIFI WIDGET", items: [
+        { k: "wifi_bg",         lbl: "WIFI_BG" },
+        { k: "wifi_border",     lbl: "WIFI_BORDER" },
+        { k: "wifi_inactive",   lbl: "WIFI_INACTIVE" },
+        { k: "wifi_low",        lbl: "WIFI_LOW" },
+        { k: "wifi_low_mid",    lbl: "WIFI_LOW_MID" },
+        { k: "wifi_mid",        lbl: "WIFI_MID" },
+        { k: "wifi_high",       lbl: "WIFI_HIGH" }
+      ]},
+      { label: "IP WIDGET", items: [
+        { k: "ip",              lbl: "IP_TEXT" },
+        { k: "ip_bg",           lbl: "IP_BG" },
+        { k: "ip_border",       lbl: "IP_BORDER" }
+      ]},
+      { label: "CH WIDGET", items: [
+        { k: "ch",              lbl: "CH_TEXT" },
+        { k: "ch_bg",           lbl: "CH_BG" },
+        { k: "ch_border",       lbl: "CH_BORDER" }
+      ]},
+      { label: "RSSI WIDGET", items: [
+        { k: "rssi",            lbl: "RSSI_TEXT" },
+        { k: "rssi_bg",         lbl: "RSSI_BG" },
+        { k: "rssi_border",     lbl: "RSSI_BORDER" }
+      ]},
+      { label: "BUFFER", items: [
+        { k: "buffer",          lbl: "BUFFER" }
+      ]},
+      { label: "PLAYLIST", items: [
+        { k: "pl_current",      lbl: "PL_CURRENT" },
+        { k: "pl_current_bg",   lbl: "PL_CURRENT_BG" },
+        { k: "pl_current_fill", lbl: "PL_CURRENT_FILL" },
+        { k: "playlist_0",      lbl: "PLAYLIST_0" },
+        { k: "playlist_1",      lbl: "PLAYLIST_1" },
+        { k: "playlist_2",      lbl: "PLAYLIST_2" },
+        { k: "playlist_3",      lbl: "PLAYLIST_3" },
+        { k: "playlist_4",      lbl: "PLAYLIST_4" }
+      ]},
+      { label: "PRESETS", items: [
+        { k: "prst_button",     lbl: "PRST_BUTTON" },
+        { k: "prst_card",       lbl: "PRST_CARD" },
+        { k: "prst_accent",     lbl: "PRST_ACCENT" },
+        { k: "prst_fav",        lbl: "PRST_FAV" },
+        { k: "prst_fav_inactive", lbl: "PRST_FAV_INACTIVE" },
+        { k: "prst_title1",     lbl: "PRST_TITLE_1" },
+        { k: "prst_title2",     lbl: "PRST_TITLE_2" },
+        { k: "prst_title3",     lbl: "PRST_TITLE_3" },
+        { k: "prst_line",       lbl: "PRST_LINE" }
+      ]}
+    ];
+    const keys = groups.flatMap((g) => g.items.map((item) => item.k));
+
+    const grid = document.getElementById("themeGrid");
+    const status = document.getElementById("status");
+    let previewTimer = null;
+    let previewInFlight = false;
+    let previewQueued = false;
+    const PREVIEW_DELAY_MS = 120;
+    let pageBaselineTheme = null;
+
+    function setStatus(text, isError) {
+      status.textContent = text || "";
+      status.classList.toggle("error", !!isError);
+    }
+
+    function normalizeHex(hex) {
+      if (!hex) return "#000000";
+      if (/^#[0-9a-fA-F]{6}$/.test(hex)) return hex.toUpperCase();
+      return "#000000";
+    }
+
+    function rgbFromHex(hex) {
+      const v = normalizeHex(hex).slice(1);
+      const r = parseInt(v.slice(0, 2), 16);
+      const g = parseInt(v.slice(2, 4), 16);
+      const b = parseInt(v.slice(4, 6), 16);
+      return [r, g, b];
+    }
+
+    function buildColorItem(key, lbl, theme) {
+      const item = document.createElement("div");
+      item.className = "theme-item";
+      const label = document.createElement("label");
+      label.setAttribute("for", "c_" + key);
+      label.textContent = lbl || key;
+      const picker = document.createElement("input");
+      picker.type = "color";
+      picker.id = "c_" + key;
+      picker.dataset.key = key;
+      picker.value = normalizeHex(theme[key] || "#000000");
+      const controls = document.createElement("div");
+      controls.className = "theme-item-controls";
+      const resetOne = document.createElement("button");
+      resetOne.type = "button";
+      resetOne.className = "mini-btn";
+      resetOne.dataset.resetKey = key;
+      resetOne.title = "Reset this color to page-load value";
+      resetOne.textContent = "R";
+      controls.appendChild(resetOne);
+      controls.appendChild(picker);
+      item.appendChild(label);
+      item.appendChild(controls);
+      return item;
+    }
+
+    function buildGrid(theme) {
+      grid.innerHTML = "";
+      groups.forEach((group) => {
+        const header = document.createElement("div");
+        header.className = "row-title";
+        header.innerHTML = "<span>" + group.label + "</span>";
+        grid.appendChild(header);
+        group.items.forEach((item) => {
+          grid.appendChild(buildColorItem(item.k, item.lbl, theme));
+        });
+      });
+    }
+
+    function normalizeThemeObject(obj) {
+      const out = {};
+      keys.forEach((key) => {
+        out[key] = normalizeHex(obj && obj[key] ? obj[key] : "#000000");
+      });
+      return out;
+    }
+
+    function getVersionTriplet() {
+      const raw =
+        (typeof themeCsvVersion !== "undefined" && themeCsvVersion)
+          ? String(themeCsvVersion)
+          : ((typeof fwVersion !== "undefined" && fwVersion) ? String(fwVersion) : "0.0.0");
+      const parts = raw.split(".");
+      const a = Math.max(0, Math.min(255, parseInt(parts[0] || "0", 10) || 0));
+      const b = Math.max(0, Math.min(255, parseInt(parts[1] || "0", 10) || 0));
+      const c = Math.max(0, Math.min(255, parseInt(parts[2] || "0", 10) || 0));
+      return [a, b, c];
+    }
+
+    function currentThemeObject() {
+      const out = {};
+      keys.forEach((key) => {
+        const el = document.getElementById("c_" + key);
+        out[key] = normalizeHex(el ? el.value : "#000000");
+      });
+      return out;
+    }
+
+    function themeToCsv(themeObj) {
+      const lines = [];
+      const ver = getVersionTriplet();
+      lines.push("version," + ver[0] + "," + ver[1] + "," + ver[2]);
+      keys.forEach((key) => {
+        const rgb = rgbFromHex(themeObj[key]);
+        lines.push(key + "," + rgb[0] + "," + rgb[1] + "," + rgb[2]);
+      });
+      return lines.join("\n") + "\n";
+    }
+
+    async function previewThemeNow() {
+      if (previewInFlight) {
+        previewQueued = true;
+        return;
+      }
+      previewInFlight = true;
+      try {
+        const csv = themeToCsv(currentThemeObject());
+        const resp = await fetch("/theme", {
+          method: "PUT",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: csv
+        });
+        if (!resp.ok) {
+          throw new Error("HTTP " + resp.status);
+        }
+      } catch (err) {
+        setStatus("Live preview failed", true);
+      } finally {
+        previewInFlight = false;
+        if (previewQueued) {
+          previewQueued = false;
+          previewThemeNow();
+        }
+      }
+    }
+
+    function schedulePreview() {
+      if (previewTimer) {
+        clearTimeout(previewTimer);
+      }
+      previewTimer = setTimeout(() => {
+        previewTimer = null;
+        previewThemeNow();
+      }, PREVIEW_DELAY_MS);
+    }
+
+    function loadLogo() {
+      fetch("logo.svg", { cache: "no-store" })
+        .then((resp) => resp.ok ? resp.text() : "")
+        .then((svg) => {
+          if (!svg) return;
+          const logo = document.getElementById("logo");
+          if (logo) {
+            logo.innerHTML = svg;
+          }
+        })
+        .catch(() => {});
+    }
+
+    async function loadTheme() {
+      setStatus("Loading theme...", false);
+      try {
+        const resp = await fetch("/theme", { cache: "no-store" });
+        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        const theme = normalizeThemeObject(await resp.json());
+        if (pageBaselineTheme === null) {
+          pageBaselineTheme = Object.assign({}, theme);
+        }
+        buildGrid(theme);
+        setStatus("Theme loaded", false);
+      } catch (err) {
+        setStatus("Theme load failed", true);
+      }
+    }
+
+    async function saveTheme() {
+      setStatus("Saving theme...", false);
+      try {
+        const csv = themeToCsv(currentThemeObject());
+        const resp = await fetch("/theme", {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: csv
+        });
+        if (!resp.ok) {
+          const txt = await resp.text();
+          throw new Error(txt || ("HTTP " + resp.status));
+        }
+        const theme = normalizeThemeObject(await resp.json());
+        buildGrid(theme);
+        setStatus("Theme saved", false);
+      } catch (err) {
+        setStatus("Theme save failed", true);
+      }
+    }
+
+    function exportThemeCsv() {
+      try {
+        const csv = themeToCsv(currentThemeObject());
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const a = document.createElement("a");
+        const stamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19);
+        a.href = URL.createObjectURL(blob);
+        a.download = "VTomRadio_theme_" + stamp + ".csv";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+        setStatus("Theme CSV exported", false);
+      } catch (err) {
+        setStatus("Theme export failed", true);
+      }
+    }
+
+    async function resetTheme() {
+      setStatus("Resetting theme...", false);
+      try {
+        const resp = await fetch("/theme", { method: "DELETE" });
+        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        const theme = await resp.json();
+        buildGrid(theme || {});
+        setStatus("Theme reset to defaults", false);
+      } catch (err) {
+        setStatus("Theme reset failed", true);
+      }
+    }
+
+    function parseCsvTheme(text) {
+      const themeObj = {};
+      text.split(/\r?\n/).forEach((line) => {
+        const parts = line.split(",");
+        if (parts.length < 4) return;
+        const key = parts[0].trim();
+        if (key === "version" || !key) return;
+        const r = Math.max(0, Math.min(255, parseInt(parts[1], 10) || 0));
+        const g = Math.max(0, Math.min(255, parseInt(parts[2], 10) || 0));
+        const b = Math.max(0, Math.min(255, parseInt(parts[3], 10) || 0));
+        const hex = "#" + [r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("").toUpperCase();
+        themeObj[key] = hex;
+      });
+      return themeObj;
+    }
+
+    document.getElementById("reloadBtn").addEventListener("click", loadTheme);
+
+    document.getElementById("importBtn").addEventListener("click", () => {
+      document.getElementById("csvFileInput").value = "";
+      document.getElementById("csvFileInput").click();
+    });
+
+    document.getElementById("csvFileInput").addEventListener("change", (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const raw = e.target.result;
+          const themeObj = normalizeThemeObject(parseCsvTheme(raw));
+          if (pageBaselineTheme === null) {
+            pageBaselineTheme = Object.assign({}, themeObj);
+          }
+          buildGrid(themeObj);
+          schedulePreview();
+          setStatus("CSV loaded: " + file.name, false);
+        } catch (err) {
+          setStatus("CSV parse failed", true);
+        }
+      };
+      reader.onerror = () => setStatus("File read error", true);
+      reader.readAsText(file);
+    });
+
+    document.getElementById("saveBtn").addEventListener("click", saveTheme);
+    document.getElementById("exportBtn").addEventListener("click", exportThemeCsv);
+    document.getElementById("resetBtn").addEventListener("click", resetTheme);
+    document.getElementById("backBtn").addEventListener("click", () => {
+      window.location.href = "/settings.html";
+    });
+
+    grid.addEventListener("input", (event) => {
+      const t = event.target;
+      if (t && t.matches && t.matches('input[type="color"]')) {
+        schedulePreview();
+      }
+    });
+
+    grid.addEventListener("click", (event) => {
+      const t = event.target;
+      if (!t || !t.dataset || !t.dataset.resetKey) return;
+      if (!pageBaselineTheme) return;
+      const key = t.dataset.resetKey;
+      const picker = document.getElementById("c_" + key);
+      if (!picker) return;
+      picker.value = normalizeHex(pageBaselineTheme[key] || "#000000");
+      schedulePreview();
+      setStatus("One color reset to page-load value", false);
+    });
+
+    loadLogo();
+    loadTheme();
+  </script>
+</body>
+</html>

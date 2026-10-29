@@ -8,7 +8,7 @@ www.saint.gr/2025/02/calendar.aspx*/
 
 const char* nameday_label = "Γιορτάζει Ο/Η:"; // Ονομαστική γιορτή
 
-const char* namedays[] = {
+const char* const namedays[] = {
   // Ιανουάριος
   "Βασίλης, Βασιλική", // 1 Πρωτοχρονιά, Άγιος Βασίλειος
   "        ", // 2

@@ -29,6 +29,7 @@ Ez a verzió kizárólag az ESP32-S3-devkit-C1 N16R8, 44 lábú modulhoz és
 - ILI9488 480x320 felbontású SPI (LCD) 
 - ILI9341 320x240 felbontású SPI (LCD)
 - ST7796 480x320 felbontású SPI (LCD)   
+- ST7789 320x240 felbontású SPI (LCD)
 
 kijelzőhöz készült és csak az audioI2S DAC eszközzel működik megfelelően, [PCM5102A](PCM5102A) -val tesztelve!
 - A program működéséhez 16MB flash memória és 8MB PSRAM szükséges!
@@ -70,7 +71,7 @@ pio run --target uploadfs
 
 ## Nyelvek, teruleti beallitasok:
 
-Aprogram beépített nyelveket és területi beállításokat tartalmaz HU, PL, GR, EN, RU, NL, SK, UA, DE nyelveken.   
+Aprogram beépített nyelveket és területi beállításokat tartalmaz HU, PL, GR, EN, RU, NL, CZ, SK, UA, DE nyelveken.   
 A myoptions.h fájlban az alábbi paranccsal állíthatod be.   
 ```cpp
 #define LANGUAGE HU
@@ -86,7 +87,7 @@ Az ESP modulról itt olvasható:
 esp32-S3-devkit-C1 44 pins https://randomnerdtutorials.com/esp32-s3-devkitc-pinout-guide 
 
 ## Nevnapok megjelenitese:
-A program képes megjeleníteni a HU, PL, NL, GR, DE nyelvű névnapokat.
+A program képes megjeleníteni a HU, PL, NL, GR, DE, SK, CZ, UA nyelvű névnapokat.
 - A myoptions.h fájlban az alábbi paranccsal állíthatod be a megjelenítendő névnapokat.   
 ```cpp
 #define NAMEDAYS_FILE HU   
@@ -95,7 +96,9 @@ A névnapok tárolása az alábbi fájlokban történik.
 
       VTomRadio/local/namedays/namedays_HU.h
       VTomRadio/local/namedays/namedays_PL.h
-      VTomRadio/local/namedays/namedays_GR.h  
+      VTomRadio/local/namedays/namedays_GR.h
+      VTomRadio/local/namedays/namedays_CZ.h
+      VTomRadio/local/namedays/namedays_SK.h
       VTomRadio/local/namedays/namedays_DE.h
       VTomRadio/local/namedays/namedays_NL.h
       VTomRadio/local/namedays/namedays_UA.h
@@ -109,8 +112,8 @@ A program lehetőséget biztosít a hangerő 0 - 21 értékeinek személyreszab�
 Bővebben a hangerőgörbe működéséről a következő oldalon olvashatsz: [Hangerőgörbe (volume curve) működése](Doc/volcurve.md)
 
 ## PCB nyomtatott aramkor:
-- A PCB nyomtatott áramkör a VTom Radio projekthez készült. Az összeállításhoz szükséges leírásokat, kapcsolási rajzot, alkatrészlistát és a nyomtatott áramkör tervrajzát a PCB/PCB_2026_05_25 mappában találod. A 2026.06.21 verzió leírása is itt található.   
-Itt olvashatsz róla bővebben: [PCB_2026_05_25](PCB/PCB_2026_05_25/readme.md)
+- A PCB nyomtatott áramkör a VTom Radio projekthez készült. Az összeállításhoz szükséges leírásokat, kapcsolási rajzot, alkatrészlistát és a nyomtatott áramkör tervrajzát a PCB/PCB_2026_06_21 mappában találod.  
+Itt olvashatsz róla bővebben: [PCB_2026_06_21](PCB/PCB_2026_06_21/readme.md)
 
 ## 3D nyomtatasi tervek
 - IPS 4.0 Inch, SPI, ILI9488 Factory TFT LCD 480*320, 14 Pin Electronic Board  
@@ -125,8 +128,75 @@ Itt olvashatsz róla bővebben: [PCB_2026_05_25](PCB/PCB_2026_05_25/readme.md)
 ### Ha támogatni szeretnéd a munkámat itt meghívhatsz egy kávéra!!!     
 <a href="https://buymeacoffee.com/vtom">
     <img src="images/buymeacoffee.png" width="200">
-</a>  
+</a> 
 
+## v0.2.4   
+- DLNA: mostantól a lejátszási lista összeállításánál a zenefájlokat a fájlok előtt megjelenő jelölőnégyzettel lehet kiválasztani.  
+- A kijelölt számokból új lista építése vagy meglévőhöz fűzése lehetséges.  
+- A DLNA lista törlésének lehetősége a lista összeállító mező jobb szélén elhelyezett kuka ikonra kattintva érhető el.  
+- Megújult DLNA weboldal és megbízhatóbb listafrissítés (gyorsítótár nélkül).
+
+## v0.2.3
+- Új funkció. Az enkoder dupla kattintásra a forrásválasztás menüből történik és a WEB UI-ban is elérhető.
+- Az intelligens hálózatválasztás továbbfejlesztve, stabilabb csatlakozás érhető el.
+- DLNA kapcsolódás hibáinak javítása és a DLNA lejátszási lista forrásként választható a WEB Radio és az SD módnál megszokott módon.
+- Kisebb hibajavítások és optimalizálások
+
+## v0.2.2
+- Hálózatvesztés esetén az IP cím helyén megjelenik a "Scan WiFi..." üzenet, miközben új hálózatot keres.
+- Kapcsolódás után 5 másodperces váltással jelenik meg az IP cím és az SSID az IP mezőben.
+## v0.2.1
+- Az inteligens hálózatválasztás több időt kapott a csatlakozáshoz, így nem indul feleslegesen AP módban.
+- Az intelligens Wi-Fi indítás soha nem csatlakozik rejtett SSID-khez hiba javítva. https://github.com/VaraiTamas/VTomRadio/issues/18
+## v0.2.0
+   - Intelligens Wi-Fi hálózatválasztás és automatikus újracsatlakozás implementálva.
+- A minimum jelerősség (wifiMinRssi) beállítása a webes felületen elérhető.
+- Támogatás nyílt (jelszó nélküli) Wi-Fi hálózatokhoz.
+- Bővebben a Wi-Fi beállításokról a következő oldalon olvashatsz: [Doc/wifi.md](Doc/wifi.md)
+- Smart start bizonytalan működésének javítása.    
+Teljes újratelepítés szükséges!!!
+## v0.1.15
+- SD módból WEB radióra váltásnál fagyás és újraindulási hiba javítása.
+
+## v0.1.14 (by Botfai Tibor)
+- A LittleFS-SPIFFS Partition Manager program frissítése a v0.6.0 verzióra, amely lehetővé teszi a rádió fájlrendszerének kezelését WiFi karbantartó protokollon keresztül. Ezen program a továbbiakban SOROS PORTON keresztül nem működik!  
+A program a VTomRadio/LittleFS_manager mappában található.  
+Bővebben a programról a következő oldalon olvashatsz: [LittleFS-SPIFFS Partition Manager v0.6.0](LittleFS_manager/Readme.md)
+## v0.1.13  
+
+- Téma szerkesztőben a VU_PEAK és a PRST_FAV_INACTIVE beállítások hozzáadása.
+- Új téma hozzáadása: 
+  ```
+  Custom_themes\VTom_Vintage_amber.csv
+  ```
+## v0.1.12
+- Smart Start indítási hiba javítása.  
+Mostantól a program csak a WEB UI-ban beállított "Smart Start" állapotot veszi figyelembe, az utolsó állapotot nem menti el.  
+- SK névnapok hozzáadva. (by Pali Pal)
+- ST7789 kijelző támogatás hozzáadva. (by Marek Zettík)
+
+## v0.1.11  
+- A LovyanGFX könyvtár SPI busz sebességének csökkentése a kijelző stabilitásának javítása érdekében.    
+A nagyfrekvenciás SPI busz megköveteli a megfelelő minőségű vezetékelést, különben a kijelzőn hibás képet jelenít meg. A LovyanGFX könyvtárban a SPI busz sebessége 40 MHz, ami sok esetben túl gyors lehet a megépített hardverhez. A myoptions.h fájlban a következő sorokkal csökkenthető a sebesség 30 MHz-re, ami stabilabb működést eredményezhet. 
+Amennyiben a kijelző stabilan működik, akkor a myoptions.h fájlban a következő sorokat hagyd kikommentelve, így a LovyanGFX könyvtár az eredeti sebességgel fog működni. 
+```
+/*----- LovyanGFX SPI bus speed -----*/
+/* Usable values ​​are 24, 26, 28, 30, 32, 36 MHz */
+// #  define LGFX_LCD_FREQ_WRITE 30000000             // original: 40000000
+// #  define LGFX_LCD_FREQ_READ  10000000             // original: 16000000
+// #  define LGFX_TOUCH_SPI_FREQ   800000             // original: 2500000
+```   
+
+## v0.1.10
+- Hangszínszabályzó balance jobb és bal csatorna fordított működésének javítása.
+- Képernyő forgatás beállítása a myoptions.h fájlban, ha szükséges.
+```
+/*----- SCREEN ROTATION -----*/
+#define DEFAULT_SCREEN_ROTATION 3  /* 0-3 */
+```
+
+## v0.1.9 (by Marek Zettík)
+- Cseh nyelvi támogatás és névnapok hozzáadva. 
 ## v0.1.8
 - I2S audio könyvtár frissítése V3.4.7g-re. https://github.com/schreibfaul1/ESP32-audioI2S
 - A VOLUME CURVE beállításánál a hangerő 0 - 21 értékeihez tartozó dB értékek összehangolása az audioI2S könyvtárral.   

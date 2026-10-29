@@ -1,4 +1,4 @@
-version,0,0,2
+version,0,0,3
 background,8,20,16
 meta,189,255,123
 metabg,8,20,16
@@ -18,6 +18,7 @@ date,164,202,106
 vumax,0,238,0
 vumid,0,141,0
 vumin,0,93,0
+vupeak,0,238,0
 vulrbox,0,238,0
 vulrtext,164,202,106
 vol_bg,0,12,8
@@ -56,6 +57,7 @@ prst_button,8,28,16
 prst_card,8,28,16
 prst_accent,24,48,32
 prst_fav,189,255,123
+prst_fav_inactive,74,93,74
 prst_title1,189,255,123
 prst_title2,164,202,106
 prst_title3,131,161,90

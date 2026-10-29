@@ -52,9 +52,9 @@ void DspCore::sleep(void) {
 }
 
 void DspCore::wake(void) {
-    writeCommand(ILI9488_DISPON);
-    delay(150);
     writeCommand(ILI9488_SLPOUT);
+    delay(150);
+    writeCommand(ILI9488_DISPON);
     delay(150);
 }
 

@@ -1,0 +1,17 @@
+:root {
+  --main-bg-color: #0d0c0b;
+  --main-text-color: #b5aea3;
+  --main-hl-color: #ded8cd;
+  --odd-bg-color: #141312;
+  --accent-color: #A68A56;
+  --accent-dark: #8C7C69;
+  --accent-text-color: #0d0c0b;
+  --input-border: #2b2724;
+  --logo: #8C7C69;
+  --logo-red: #ff9800;
+  --logo-shadow: #000000;
+  --playlist-hover: #1f1c1a;
+  --section-gradient: #11100f;
+  --section-border: #2b2724;
+  --heapbar-color: #52591D;
+}

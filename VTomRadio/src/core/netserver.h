@@ -26,7 +26,7 @@ label{color:var(--accent-color,#4b95d6);}
 .wifi-item:hover{background: var(--playlist-hover,#272727);}
 .wifi-rssi{color: var(--accent-dark,#999);font-size:14px;}
 input[type=file]{color: var(--main-hl-color,#ccc);font-family:"Roboto","Helvetica Neue",Arial,sans-serif;}
-input[type=file]::file-selector-button{border:var(--accent-color,#4b95d6) 2px solid;color:var(--accent-color,#4b95d6);background:var(--odd-bg-color,#272727);padding:6px 16px;border-radius:20px;margin:0 6px;cursor:pointer;text-transform:uppercase;font-family:"Roboto","Helvetica Neue",Arial,sans-serif;}
+input[type=file]::file-selector-button{border:var(--accent-color,#4b95d6) 2px solid;color:var(--accent-color,#4b95d6);background:var(--odd-bg-color,#272727);padding:6px 16px;border-radius:10px;margin:0 6px;cursor:pointer;text-transform:uppercase;font-family:"Roboto","Helvetica Neue",Arial,sans-serif;}
 input[type=file]::file-selector-button:hover{background:var(--accent-color,#4b95d6);color:var(--odd-bg-color,#000);}
 input[type=submit]{margin-top:10px;} span{color: var(--main-text-color,#ccc)} .flex{display:flex;justify-content: space-around;margin-top:10px;}
 #wupload p{margin:0;} #wupload input[type=submit]{margin-top:0;}

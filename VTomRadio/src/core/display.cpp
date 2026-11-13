@@ -426,7 +426,11 @@ void Display::_swichMode(displayMode_e newmode) {
         _nums->setText(config.store.volume, numtxtFmt);
     }
     if (newmode == NUMBERS) { _showDialog(""); }
+#    ifdef UPD_SCREEN
+    if (newmode == UPDATING) { _updScreen(); } // (MB) ekran aktualizacji z paskiem postępu
+#    else
     if (newmode == UPDATING) { _showDialog(LANG::const_DlgUpdate); }
+#    endif
     if (newmode == SLEEPING) {
         _showDialog("SLEEPING");
         delay(2000);
@@ -496,6 +500,7 @@ void Display::putRequest(displayRequestType_e type, int payload) {
         case DSPRSSI:
         case DRAWVOL:
         case DRAWINPUTSELECT:
+        case UPDPROGRESS: // (MB) liczy się tylko najnowszy postęp
             purgeQueuedRequestType(type);
             break;
         default:
@@ -637,6 +642,10 @@ void Display::loop() {
 
                 case INVALIDATETHEMEWIDGETS: invalidateThemeWidgets(); break;
 
+                // (MB) ekran aktualizacji
+                case UPDPROGRESS: _updProgress(request.payload); break;
+                case UPDSTATUS: _updStatus(request.payload); break;
+
                 case BOOTSTRING:
                     if (_bootstring) { _bootstring->setText(config.ssids[request.payload].ssid, LANG::bootstrFmt); }
                     break;
@@ -772,6 +781,65 @@ void Display::_bufWarning() {
     }
     g_bufWarnShown = shown;
     _wifiwidget->setBufWarn(shown);
+}
+
+/* (MB) Ekran aktualizacji: napis, co jest wgrywane, pasek postępu, procenty i ostrzeżenie.
+   Bez dolnego paska (głośność, numer kanału), bo w trakcie aktualizacji radio nie gra. */
+void Display::_updScreen() {
+#    ifdef UPD_SCREEN
+    const uint16_t bg = config.theme.background;
+    if (!_updPage) {
+        _updPage = new Page();
+        _updTitle = new textBoxWidget(updTitleConf, 32, false, config.theme.meta, config.theme.metabg, config.theme.metabg);
+        _updWhat = new textBoxWidget(updWhatConf, 48, false, config.theme.title1, bg, bg);
+        _updBar = new SliderWidget(updBarConf, config.theme.digit, bg, 100, config.theme.ip_border);
+        _updPct = new textBoxWidget(updPctConf, 16, false, config.theme.clock, bg, bg);
+        _updWarn = new textBoxWidget(updWarnConf, 48, false, config.theme.title1, bg, config.theme.vumax);
+        if (_metabackground) { _updPage->addWidget(_metabackground); }
+        _updPage->addWidget(_updTitle);
+        _updPage->addWidget(_updWhat);
+        _updPage->addWidget(_updBar);
+        _updPage->addWidget(_updPct);
+        _updPage->addWidget(_updWarn);
+        _pager->addPage(_updPage);
+    }
+    // teksty ustawiane przed pokazaniem strony (widżety nieaktywne nic nie rysują)
+    _updTitle->setText("AKTUALIZACJA");
+    _updWhat->setText(_updTarget == UPD_FILESYSTEM ? "System plików" : "Oprogramowanie");
+    _updPct->setText("0%");
+    _updWarn->setText("Nie wyłączaj zasilania!");
+    _updBar->setValue(0);
+    _updBar->setColors(config.theme.digit, bg); // zeruje pamięć paska, żeby rysował się od zera
+    _pager->setPage(_updPage);
+#    endif
+}
+
+void Display::_updProgress(int pct) {
+#    ifdef UPD_SCREEN
+    if (_mode != UPDATING || !_updPage) { return; }
+    pct = constrain(pct, 0, 100);
+    _updBar->setValue(pct);
+    _updPct->setText(pct, "%d%%");
+#    endif
+}
+
+void Display::_updStatus(int status) {
+#    ifdef UPD_SCREEN
+    if (status == UPD_FIRMWARE || status == UPD_FILESYSTEM) {
+        _updTarget = status;
+        // kolejna próba po błędzie: radio jest już w trybie aktualizacji, więc rysujemy ekran od nowa
+        if (_mode == UPDATING && _updPage) { _updScreen(); }
+        return;
+    }
+    if (_mode != UPDATING || !_updPage) { return; }
+    if (status == UPD_DONE) {
+        _updProgress(100);
+        _updWhat->setText("Gotowe, restart...");
+    } else {
+        _updWhat->setText("Błąd aktualizacji!");
+        _updWarn->setText("Spróbuj wgrać jeszcze raz");
+    }
+#    endif
 }
 
 void Display::_setRSSI(int rssi) {

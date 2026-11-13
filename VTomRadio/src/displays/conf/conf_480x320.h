@@ -70,6 +70,16 @@ const BitrateBoxConfig bitrateConf PROGMEM = {TFT_FRAMEWDT, 145, 20, WA_CENTER, 
 const VU_WidgetConfig vuConf PROGMEM = {37, 258, 9, 300, 7, 6, 2, 30, 11, 22, 12};              // ALAP VU: két VU egymás alatt
 const VU_WidgetConfig vuConfBidirectional PROGMEM = {35, 265, 9, 200, 7, 6, 2, 20, 9, 22, 12}; // BOOMBOX_STYLE: két VU egymás mellett
 
+/* (MB) EKRAN AKTUALIZACJI: pasek postępu zamiast samego napisu, bez dolnego paska (głośność, kanał) */
+#define UPD_SCREEN 1
+// left, top, width, height, textsize, align, border, radius, fill, paddingX, paddingY
+const textBoxConfig updTitleConf  PROGMEM = {TFT_FRAMEWDT, 2, MAX_WIDTH, 42, 36, WA_CENTER, 0, 0, true, 0, 0};    // napis AKTUALIZACJA
+const textBoxConfig updWhatConf   PROGMEM = {TFT_FRAMEWDT, 68, MAX_WIDTH, 32, 24, WA_CENTER, 0, 0, true, 0, 0};    // co jest wgrywane
+const textBoxConfig updPctConf    PROGMEM = {TFT_FRAMEWDT, 166, MAX_WIDTH, 44, 36, WA_CENTER, 0, 0, true, 0, 0};   // procenty
+const textBoxConfig updWarnConf   PROGMEM = {50, 244, 380, 48, 24, WA_CENTER, 2, 8, true, 0, 0};                 // ostrzeżenie w ramce
+/* {{ left, top, fontsize, align }, width, height, outlined } */
+const FillConfig    updBarConf    PROGMEM = {{40, 120, 0, WA_LEFT}, 400, 32, true};                               // pasek postępu
+
 /* STRINGS  */
 const char numtxtFmt[]  PROGMEM = "%d";
 const char rssiFmt[]    PROGMEM = "WiFi %ddBm";

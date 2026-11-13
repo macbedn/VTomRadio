@@ -1793,6 +1793,7 @@ void handleUpload(AsyncWebServerRequest *request, String filename, size_t index,
       int target = (request->getParam("updatetarget", true)->value() == "littlefs") ? U_LITTLEFS : U_FLASH;
       Serial.printf("Update Start: %s\n", filename.c_str());
       player.sendCommand({PR_STOP, 0});
+      display.putRequest(UPDSTATUS, target == U_LITTLEFS ? UPD_FILESYSTEM : UPD_FIRMWARE);  // (MB) ekran aktualizacji
       display.putRequest(NEWMODE, UPDATING);
       if (!Update.begin(UPDATE_SIZE_UNKNOWN, target)) {
         Update.printError(Serial);
@@ -1805,12 +1806,26 @@ void handleUpload(AsyncWebServerRequest *request, String filename, size_t index,
         request->send(200, "text/html", updateError());
       }
     }
+    {  // (MB) postęp na ekranie radia; contentLength() to cała wysyłka, więc pod koniec bywa 99%, a 100% daje UPD_DONE
+      static int lastPct = -1;
+      if (!index) { lastPct = -1; }
+      const size_t total = request->contentLength();
+      if (total > 0) {
+        const int pct = (int)((uint64_t)(index + len) * 100 / total);
+        if (pct != lastPct) {
+          lastPct = pct;
+          display.putRequest(UPDPROGRESS, pct);
+        }
+      }
+    }
     if (final) {
       if (Update.end(true)) {
         Serial.printf("Update Success: %uB\n", index + len);
+        display.putRequest(UPDSTATUS, UPD_DONE);  // (MB)
       } else {
         Update.printError(Serial);
         request->send(200, "text/html", updateError());
+        display.putRequest(UPDSTATUS, UPD_ERROR);  // (MB)
       }
     }
   } else {  // "/webboard"

@@ -97,6 +97,14 @@ class Display {
     void    _refreshThemeColors();
     void    _applyRssiMode();
     void    _bufWarning();  // (MB) sygnalizator niskiego bufora audio
+    // (MB) ekran aktualizacji z paskiem postępu
+    Page*          _updPage = nullptr;
+    textBoxWidget *_updTitle = nullptr, *_updWhat = nullptr, *_updPct = nullptr, *_updWarn = nullptr;
+    SliderWidget*  _updBar = nullptr;
+    uint8_t        _updTarget = UPD_FIRMWARE;
+    void           _updScreen();
+    void           _updProgress(int pct);
+    void           _updStatus(int status);
 };
 
 #else

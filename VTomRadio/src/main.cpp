@@ -38,6 +38,7 @@ void setupOTA() {
     ArduinoOTA
         .onStart([]() {
             player.sendCommand({PR_STOP, 0});
+            display.putRequest(UPDSTATUS, ArduinoOTA.getCommand() == U_FLASH ? UPD_FIRMWARE : UPD_FILESYSTEM);  // (MB) ekran aktualizacji
             display.putRequest(NEWMODE, UPDATING);
             Serial.printf("Start OTA updating %s\r\n", ArduinoOTA.getCommand() == U_FLASH ? "firmware" : "filesystem");
         })
@@ -45,7 +46,10 @@ void setupOTA() {
             Serial.printf("\nEnd OTA update, Rebooting...\r\n");
             ESP.restart();
         })
-        .onProgress([](unsigned int progress, unsigned int total) { Serial.printf("Progress OTA: %u%%\r", (progress / (total / 100))); })
+        .onProgress([](unsigned int progress, unsigned int total) {
+            Serial.printf("Progress OTA: %u%%\r", (progress / (total / 100)));
+            if (total) { display.putRequest(UPDPROGRESS, (int)((uint64_t)progress * 100 / total)); } // (MB) ekran aktualizacji
+        })
         .onError([](ota_error_t error) {
             Serial.printf("Error[%u]: ", error);
             if (error == OTA_AUTH_ERROR) {

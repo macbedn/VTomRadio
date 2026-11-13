@@ -133,6 +133,9 @@ Supported languages: HU, PL, NL, GR, DE, CZ, SK (UA Local/namedays/namedays_UA.h
 /*----- (MB) test plynnego przewijania: petla ekranu co 10 ms zamiast 30 ms -----*/
 #define DSP_TASK_DELAY pdMS_TO_TICKS(10)
 
+/*----- (MB) test: strona http://<IP radia>/cpu z obciazeniem rdzeni -----*/
+#define CPU_STATS
+
 /*----- Ezzel a beállítással a teljes időjárás jelentés megjelenik. -----*/
 /*----- With this setting, the full weather report is displayed. -----*/
  #define EXT_WEATHER  true

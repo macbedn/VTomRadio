@@ -13,6 +13,7 @@
 #include "commandhandler.h"
 #include "timekeeper.h"
 #include "fs_api_http.h"
+#include "cpustats.h" // (MB) strona /cpu
 #include "../displays/widgets/widgetsconfig.h"
 
 #ifdef USE_DLNA  //DLNA mod
@@ -417,6 +418,9 @@ bool NetServer::begin(bool quiet) {
 
   webserver.on("/", HTTP_ANY, handleIndex);
   fs_api_http::register_routes(webserver);
+#ifdef CPU_STATS
+  cpustats_register(webserver); // (MB) pomiar obciazenia rdzeni
+#endif
   webserver.onNotFound(handleNotFound);
   webserver.onFileUpload(handleUpload);
 //DLNA mod

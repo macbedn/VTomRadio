@@ -28,8 +28,7 @@
 > - zmiana kolorów panelu WWW
 > - zmiana motywu ekranu
 >
-> *Private fork of VTomRadio adapted to my hardware (Polish UI, ST7796, custom Wi-Fi icon and theme).
-> Original project and documentation below.*
+> *Private fork of VTomRadio adapted to my hardware. Original project and documentation below.*
 
 <img src="images/radio_ESP32.jpeg" alt="Moje radio" width="700">
 

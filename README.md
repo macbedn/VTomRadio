@@ -12,10 +12,21 @@
 > **Obudowa:** mój projekt do druku 3D na Printables – [yoRadio case for 3.5" IPS](https://www.printables.com/model/1479351-yoradio-case-for-35-ips)
 >
 > **Czym się różni od oryginału:**
-> - ikona Wi-Fi jako 4 proste słupki rysowane w kodzie (zamiast obrazków)
-> - znak „!” obok ikony Wi-Fi, gdy bufor audio jest za niski
-> - własne kolory panelu WWW (złoto-brązowe) i motyw ekranu
-> - logo MB, wersja oznaczona `_MB` (np. `0.2.7_MB`)
+>
+> **2026-11-14**
+> - ekran aktualizacji z paskiem postępu
+>
+> **2026-11-13**
+> - ikona Wi-Fi: słupki rysowane w kodzie
+> - znak „!” przy niskim buforze audio (liczony w sekundach dźwięku)
+> - płynniejsze przewijanie nazwy stacji, tytułu i listy stacji
+> - podstrona `/cpu`: obciążenie rdzeni, pamięć, bufor audio
+> - nowe logo panelu WWW
+> - strona `/webboard` w kolorach motywu
+>
+> **2026-10-29**
+> - zmiana kolorów panelu WWW
+> - zmiana motywu ekranu
 >
 > *Private fork of VTomRadio adapted to my hardware (Polish UI, ST7796, custom Wi-Fi icon and theme).
 > Original project and documentation below.*

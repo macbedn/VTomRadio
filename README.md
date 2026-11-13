@@ -9,6 +9,8 @@
 > **Mój sprzęt:** ESP32-S3 N16R8, wyświetlacz ST7796 480×320 bez dotyku, DAC PCM5102A,
 > jeden enkoder, pilot IR. Bez RTC, karty SD i DLNA.
 >
+> **Obudowa:** mój projekt do druku 3D na Printables – [yoRadio case for 3.5" IPS](https://www.printables.com/model/1479351-yoradio-case-for-35-ips)
+>
 > **Czym się różni od oryginału:**
 > - ikona Wi-Fi jako 4 proste słupki rysowane w kodzie (zamiast obrazków)
 > - znak „!” obok ikony Wi-Fi, gdy bufor audio jest za niski

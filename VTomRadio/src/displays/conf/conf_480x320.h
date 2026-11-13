@@ -70,6 +70,9 @@ const BitrateBoxConfig bitrateConf PROGMEM = {TFT_FRAMEWDT, 145, 20, WA_CENTER, 
 const VU_WidgetConfig vuConf PROGMEM = {37, 258, 9, 300, 7, 6, 2, 30, 11, 22, 12};              // ALAP VU: két VU egymás alatt
 const VU_WidgetConfig vuConfBidirectional PROGMEM = {35, 265, 9, 200, 7, 6, 2, 20, 9, 22, 12}; // BOOMBOX_STYLE: két VU egymás mellett
 
+/* (MB) USYPIANIE: animacja gaśnięcia jak w starym telewizorze kineskopowym */
+#define SLEEP_CRT_ANIM 1
+
 /* (MB) EKRAN AKTUALIZACJI: pasek postępu zamiast samego napisu, bez dolnego paska (głośność, kanał) */
 #define UPD_SCREEN 1
 // left, top, width, height, textsize, align, border, radius, fill, paddingX, paddingY

@@ -61,6 +61,7 @@ const char  const_PlConnect[]    PROGMEM = "[σύνδεση]";
 const char  const_DlgVolume[]    PROGMEM = "ΕΝΤΑΣΗ";
 const char    const_DlgLost[]    PROGMEM = "* χάθηκε το σήμα *";
 const char  const_DlgUpdate[]    PROGMEM = "* ΕΝΗΜΕΡΩΣΗ *";
+const char   const_DlgSleep[]    PROGMEM = "SLEEPING";  // (MB) napis przy usypianiu
 const char const_getWeather[]    PROGMEM = "";
 const char  const_waitForSD[]    PROGMEM = "INDEX SD";
 

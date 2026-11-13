@@ -105,6 +105,7 @@ class Display {
     void           _updScreen();
     void           _updProgress(int pct);
     void           _updStatus(int status);
+    void           _crtOff();  // (MB) animacja gaśnięcia kineskopu przy usypianiu
 };
 
 #else

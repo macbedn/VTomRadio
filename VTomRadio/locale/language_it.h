@@ -61,6 +61,7 @@ const char  const_PlConnect[]    PROGMEM = "[Connessione]";
 const char  const_DlgVolume[]    PROGMEM = "VOLUME";
 const char    const_DlgLost[]    PROGMEM = "* PERSO *";
 const char  const_DlgUpdate[]    PROGMEM = "* AGGIORNAMENTO *";
+const char   const_DlgSleep[]    PROGMEM = "SLEEPING";  // (MB) napis przy usypianiu
 const char const_getWeather[]    PROGMEM = "";
 const char  const_waitForSD[]    PROGMEM = "INDICE SD";
 

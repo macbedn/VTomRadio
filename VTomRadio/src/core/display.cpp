@@ -432,9 +432,13 @@ void Display::_swichMode(displayMode_e newmode) {
     if (newmode == UPDATING) { _showDialog(LANG::const_DlgUpdate); }
 #    endif
     if (newmode == SLEEPING) {
-        _showDialog("SLEEPING");
+        _showDialog(LANG::const_DlgSleep); // (MB) napis z pliku języka zamiast "SLEEPING"
         delay(2000);
+#    ifdef SLEEP_CRT_ANIM
+        _crtOff(); // (MB) gaśnięcie jak w kineskopie, kończy się czarnym ekranem
+#    else
         dsp.clearDsp();
+#    endif
         config.doSleepW();
     }
     if (newmode == SDCHANGE) { _showDialog(LANG::const_waitForSD); }
@@ -785,6 +789,64 @@ void Display::_bufWarning() {
 
 /* (MB) Ekran aktualizacji: napis, co jest wgrywane, pasek postępu, procenty i ostrzeżenie.
    Bez dolnego paska (głośność, numer kanału), bo w trakcie aktualizacji radio nie gra. */
+// (MB) Animacja gaśnięcia jak w starym telewizorze kineskopowym (ok. 0,8 s):
+// 1) obraz zwęża się do pasa w środku ekranu, 2) pas robi się biały i cienki,
+// 3) kreska kurczy się do punktu, 4) punkt powoli gaśnie.
+void Display::_crtOff() {
+#    ifdef SLEEP_CRT_ANIM
+    const int16_t  W = dsp.width(), H = dsp.height();
+    const int16_t  cx = W / 2, cy = H / 2;
+    const uint16_t BLACK = 0x0000, WHITE = 0xFFFF;
+
+    // 1) czarne pasy z góry i z dołu, coraz szybciej (widoczny pas: od H do 24 px)
+    const uint8_t S1 = 12;
+    int16_t       top = 0; // dotąd zaczernione od góry (i tyle samo od dołu)
+    for (uint8_t s = 1; s <= S1; s++) {
+        const float   t = (float)s / S1;
+        const int16_t h = H - (int16_t)((H - 24) * t * t);
+        const int16_t nt = cy - h / 2;
+        dsp.fillRect(0, top, W, nt - top, BLACK);
+        dsp.fillRect(0, H - nt, W, nt - top, BLACK);
+        top = nt;
+        delay(15);
+    }
+
+    // 2) pas rozbłyska na biało i zwęża się do kreski 4 px
+    const int16_t bands[] = {24, 14, 8, 4};
+    for (uint8_t i = 0; i < sizeof(bands) / sizeof(bands[0]); i++) {
+        dsp.fillRect(0, top, W, H - 2 * top, BLACK);
+        top = cy - bands[i] / 2;
+        dsp.fillRect(0, top, W, bands[i], WHITE);
+        delay(25);
+    }
+    const int16_t lineY = top, lineH = H - 2 * top;
+
+    // 3) kreska kurczy się do środka, coraz szybciej
+    const uint8_t S3 = 14;
+    int16_t       left = 0;
+    for (uint8_t s = 1; s <= S3; s++) {
+        const float   t = (float)s / S3;
+        const int16_t nl = (int16_t)((cx - 3) * t * t);
+        dsp.fillRect(left, lineY, nl - left, lineH, BLACK);
+        dsp.fillRect(W - nl, lineY, nl - left, lineH, BLACK);
+        left = nl;
+        delay(12);
+    }
+    dsp.fillRect(0, lineY, W, lineH, BLACK);
+
+    // 4) jasny punkt w środku powoli gaśnie i maleje
+    const uint8_t S4 = 10;
+    for (uint8_t s = 0; s < S4; s++) {
+        const uint8_t v = 255 - s * 255 / S4;
+        const int16_t r = 5 - s / 3;
+        dsp.fillCircle(cx, cy, 6, BLACK);
+        dsp.fillCircle(cx, cy, r, dsp.color565(v, v, v));
+        delay(40);
+    }
+    dsp.fillScreen(BLACK);
+#    endif
+}
+
 void Display::_updScreen() {
 #    ifdef UPD_SCREEN
     const uint16_t bg = config.theme.background;

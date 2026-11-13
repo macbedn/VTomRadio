@@ -1,5 +1,26 @@
+> [!NOTE]
+> **To jest mój prywatny fork** projektu [VTomRadio](https://github.com/VaraiTamas/VTomRadio) autorstwa VaraiTamas.
+> Tu trzymam tylko swoją wersję pod mój sprzęt.
+>
+> **Gałęzie:**
+> - `moje-zmiany` – moja wersja (domyślna)
+> - `main` – czysta kopia oryginału, regularnie aktualizowana
+>
+> **Mój sprzęt:** ESP32-S3 N16R8, wyświetlacz ST7796 480×320 bez dotyku, DAC PCM5102A,
+> jeden enkoder, pilot IR. Bez RTC, karty SD i DLNA.
+>
+> **Czym się różni od oryginału:**
+> - ikona Wi-Fi jako 4 proste słupki rysowane w kodzie (zamiast obrazków)
+> - znak „!” obok ikony Wi-Fi, gdy bufor audio jest za niski
+> - własne kolory panelu WWW (złoto-brązowe) i motyw ekranu
+> - logo MB, wersja oznaczona `_MB` (np. `0.2.7_MB`)
+>
+> *Private fork of VTomRadio adapted to my hardware (Polish UI, ST7796, custom Wi-Fi icon and theme).
+> Original project and documentation below.*
+
+---
+
 # VTom Radio - ESP32-S3 alapú internetes rádió
-<img src="images/fokep.png" alt="Projekt logó" width="800">
 
 ### A program alapja ёRadio v0.9.720 https://github.com/e2002/yoradio   
 Főbb változtatások:

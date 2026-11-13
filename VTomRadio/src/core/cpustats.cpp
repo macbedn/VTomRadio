@@ -8,6 +8,7 @@
 #    include <freertos/FreeRTOS.h>
 #    include <freertos/task.h>
 #    include <esp_heap_caps.h>
+#    include "player.h"
 
 namespace {
     constexpr int MAX_TASKS = 48;
@@ -33,6 +34,54 @@ namespace {
 
     String            lastReport = "Pomiar jeszcze trwa, odswiez za 2 sekundy.\n";
     SemaphoreHandle_t reportMutex = nullptr;
+
+    // (MB) bufor audio: probki co 50 ms, statystyka za kazde 2 s okno
+    // oraz najnizszy poziom od ostatniego otwarcia strony (zeby nie przegapic spadkow miedzy odczytami)
+    uint32_t           bufMin = UINT32_MAX, bufMax = 0, bufZero = 0;
+    uint64_t           bufSum = 0;
+    uint32_t           bufCnt = 0;
+    volatile uint32_t  bufMinSinceRead = UINT32_MAX;
+    constexpr uint32_t BUF_DISPLAY_FULL = 300000; // tyle radio przyjmuje za 100% na ekranie i dla "!"
+
+    void sampleBuffer() {
+        if (!player.isRunning()) return;
+        uint32_t f = player.inBufferFilled();
+        if (f < bufMin) bufMin = f;
+        if (f > bufMax) bufMax = f;
+        if (f == 0) bufZero++;
+        bufSum += f;
+        bufCnt++;
+        if (f < bufMinSinceRead) bufMinSinceRead = f;
+    }
+
+    void appendBuffer(String& out) {
+        char     line[160];
+        uint32_t size = player.getInBufferSize();
+        if (size == 0) size = 1;
+        if (bufCnt == 0) {
+            out += "\nBufor audio: brak danych (nic nie gra)\n";
+        } else {
+            uint32_t avg = bufSum / bufCnt;
+            snprintf(line, sizeof(line), "\nBufor audio (rozmiar %u KB, ekran liczy 100%% = %u KB):\n", (unsigned)(size / 1024),
+                     (unsigned)(BUF_DISPLAY_FULL / 1024));
+            out += line;
+            snprintf(line, sizeof(line), "  w oknie 2 s: min %u KB, sr %u KB, max %u KB\n", (unsigned)(bufMin / 1024), (unsigned)(avg / 1024),
+                     (unsigned)(bufMax / 1024));
+            out += line;
+            snprintf(line, sizeof(line), "  min = %.0f %% prawdziwego bufora, %.0f %% wg ekranu; probek pustych: %u\n", bufMin * 100.0f / size,
+                     bufMin * 100.0f / BUF_DISPLAY_FULL, (unsigned)bufZero);
+            out += line;
+            // linia do automatycznej analizy
+            snprintf(line, sizeof(line), "BUF min=%u avg=%u max=%u size=%u zero=%u n=%u\n", (unsigned)bufMin, (unsigned)avg, (unsigned)bufMax,
+                     (unsigned)size, (unsigned)bufZero, (unsigned)bufCnt);
+            out += line;
+        }
+        bufMin = UINT32_MAX;
+        bufMax = 0;
+        bufZero = 0;
+        bufSum = 0;
+        bufCnt = 0;
+    }
 
     String buildReport() {
         static TaskStatus_t tasks[MAX_TASKS];
@@ -94,6 +143,7 @@ namespace {
             }
         }
 
+        appendBuffer(out);
         snprintf(line, sizeof(line), "\nWolna RAM: %u B (najmniej od startu: %u B)\n",
                  (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
                  (unsigned)heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL));
@@ -114,12 +164,17 @@ namespace {
     }
 
     void statsTask(void*) {
+        uint32_t last = millis();
         while (true) {
-            String r = buildReport();
-            xSemaphoreTake(reportMutex, portMAX_DELAY);
-            lastReport = r;
-            xSemaphoreGive(reportMutex);
-            vTaskDelay(pdMS_TO_TICKS(2000));
+            sampleBuffer();
+            if (millis() - last >= 2000) {
+                last = millis();
+                String r = buildReport();
+                xSemaphoreTake(reportMutex, portMAX_DELAY);
+                lastReport = r;
+                xSemaphoreGive(reportMutex);
+            }
+            vTaskDelay(pdMS_TO_TICKS(50));
         }
     }
 
@@ -127,6 +182,13 @@ namespace {
         xSemaphoreTake(reportMutex, portMAX_DELAY);
         String r = lastReport;
         xSemaphoreGive(reportMutex);
+        uint32_t m = bufMinSinceRead;
+        bufMinSinceRead = UINT32_MAX;
+        if (m != UINT32_MAX) {
+            char line[96];
+            snprintf(line, sizeof(line), "BUFREAD min_od_ostatniego_odczytu=%u\n", (unsigned)m);
+            r += line;
+        }
         request->send(200, "text/plain; charset=utf-8", r);
     }
 } // namespace

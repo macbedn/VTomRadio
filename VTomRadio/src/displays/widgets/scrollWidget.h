@@ -34,6 +34,7 @@ class ScrollWidget : public TextWidget {
     uint16_t     _startscrolldelay;
     LGFX_Sprite* _spr = nullptr;
     int          _scrollOffset = 0;
+    uint8_t      _stepsDue = 0; // (MB) ile kroków przesunięcia należy się od ostatniej klatki
     int          _fullWidth = 0;
     ScrollState  _scrollState = SCROLL_WAIT_START;
 

@@ -130,6 +130,9 @@ Supported languages: HU, PL, NL, GR, DE, CZ, SK (UA Local/namedays/namedays_UA.h
 /*----- With this setting there is no scrolling on the weather bar. -----*/
 #define WEATHER_FMT_SHORT
 
+/*----- (MB) test plynnego przewijania: petla ekranu co 10 ms zamiast 30 ms -----*/
+#define DSP_TASK_DELAY pdMS_TO_TICKS(10)
+
 /*----- Ezzel a beállítással a teljes időjárás jelentés megjelenik. -----*/
 /*----- With this setting, the full weather report is displayed. -----*/
  #define EXT_WEATHER  true

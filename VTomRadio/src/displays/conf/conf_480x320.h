@@ -19,13 +19,13 @@
 #define bootLogoTop 30  // (MB) wysokość logo dla większego pliku wyżej
 
 /* SROLLS  */                            /* {{ left, top, fontsize, align }, buffsize, uppercase, width, scrolldelay, scrolldelta, scrolltime } */
-const ScrollConfig metaConf       PROGMEM = {{ TFT_FRAMEWDT, 0, 36, WA_LEFT }, 140, true, MAX_WIDTH, 5000, 2, 40 };  // (MB) test od lewej
-const ScrollConfig title1Conf     PROGMEM = {{TFT_FRAMEWDT, 55, 20, WA_LEFT}, 140, true, MAX_WIDTH, 5000, 2, 40};    // (MB) test od lewej
-const ScrollConfig title2Conf     PROGMEM = {{TFT_FRAMEWDT, 81, 20, WA_LEFT}, 140, true, MAX_WIDTH, 5000, 2, 40};    // (MB) test od lewej
-const ScrollConfig playlistConf   PROGMEM = {{ TFT_FRAMEWDT, 146, 24, WA_LEFT }, 140, true, MAX_WIDTH, 1000, 7, 40 };
+const ScrollConfig metaConf       PROGMEM = {{ TFT_FRAMEWDT, 0, 36, WA_LEFT }, 140, true, MAX_WIDTH, 5000, 1, 30 };  // (MB) test od lewej, plynnie: 1 px co 30 ms
+const ScrollConfig title1Conf     PROGMEM = {{TFT_FRAMEWDT, 55, 20, WA_LEFT}, 140, true, MAX_WIDTH, 5000, 1, 30};    // (MB) test od lewej, plynnie: 1 px co 30 ms
+const ScrollConfig title2Conf     PROGMEM = {{TFT_FRAMEWDT, 81, 20, WA_LEFT}, 140, true, MAX_WIDTH, 5000, 1, 30};    // (MB) test od lewej, plynnie: 1 px co 30 ms
+const ScrollConfig playlistConf   PROGMEM = {{ TFT_FRAMEWDT, 146, 24, WA_LEFT }, 140, true, MAX_WIDTH, 1000, 7, 60 };  // (MB) 60 = ta sama prędkość co przy pętli 30 ms
 const ScrollConfig apTitleConf    PROGMEM = {{ TFT_FRAMEWDT, TFT_FRAMEWDT, 4, WA_CENTER }, 140, false, MAX_WIDTH, 0, 7, 40 };
 const ScrollConfig apSettConf     PROGMEM = {{ TFT_FRAMEWDT, 320-TFT_FRAMEWDT-16, 2, WA_LEFT }, 140, false, MAX_WIDTH, 0, 5, 40 };
-const ScrollConfig weatherConf    PROGMEM = {{ TFT_FRAMEWDT, 107, 20, WA_CENTER }, 140, false, MAX_WIDTH, 5000, 4, 40 };
+const ScrollConfig weatherConf    PROGMEM = {{ TFT_FRAMEWDT, 107, 20, WA_CENTER }, 140, false, MAX_WIDTH, 5000, 4, 60 };  // (MB) 60 = ta sama prędkość co przy pętli 30 ms
 
 /* BACKGROUNDS  */                       /* {{ left, top, fontsize, align }, width, height, outlined } */
 const FillConfig   metaBGConf     PROGMEM = {{TFT_FRAMEWDT, 45, 0, WA_CENTER}, DSP_WIDTH - TFT_FRAMEWDT*2, 1, true}; // Csík rajzolása a rádióadó neve alá.

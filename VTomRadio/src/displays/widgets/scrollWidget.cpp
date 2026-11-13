@@ -137,13 +137,29 @@ void ScrollWidget::loop() {
     if (_locked || !_active || !_doscroll) return;
 
     uint32_t now = millis();
-    uint32_t waitTime = (_scrollState == SCROLL_WAIT_START) ? _startscrolldelay : _scrolltime;
 
-    if (now - _scrolldelay >= waitTime) {
-        _draw();
-        // Itt frissítjük az időbélyeget, miután a rajzolás megtörtént
-        _scrolldelay = now;
+    // (MB) Postój na początku tekstu
+    if (_scrollState == SCROLL_WAIT_START) {
+        if (now - _scrolldelay >= _startscrolldelay) {
+            _scrollState = SCROLL_RUN;
+            _scrolldelay = now;
+        }
+        return;
     }
+
+    // (MB) Przesuwanie liczone z upływu czasu: równa prędkość nawet przy spóźnionej klatce
+    uint32_t elapsed = now - _scrolldelay;
+    if (elapsed < _scrolltime) return;
+    uint32_t steps = elapsed / _scrolltime;
+    if (steps > 4) {
+        // po dłuższej przerwie (np. zajęty procesor) nie przeskakuj daleko
+        steps = 4;
+        _scrolldelay = now;
+    } else {
+        _scrolldelay += steps * _scrolltime;
+    }
+    _stepsDue = steps;
+    _draw();
 }
 
 void ScrollWidget::setColors(uint16_t fg, uint16_t bg) {
@@ -204,7 +220,8 @@ void ScrollWidget::_draw() {
     // --- 3. ESET: AKTÍV GÖRGETÉS (SCROLL_RUN) ---
     if (_scrollState == SCROLL_RUN) {
         // Offset növelése
-        _scrollOffset += _scrolldelta;
+        _scrollOffset += _scrolldelta * _stepsDue; // (MB) 0 = tylko odśwież (np. zmiana kolorów)
+        _stepsDue = 0;
 
         // Ha végére értünk a teljes hossznak (szöveg + separator)
         if (_scrollOffset >= _fullWidth) {
@@ -237,9 +254,7 @@ void ScrollWidget::_draw() {
         }
 
         _spr->pushSprite(_config.left, _config.top);
-
-        // Frissítjük az utolsó futás idejét a loop() számára
-        _scrolldelay = millis();
+        // (MB) czas następnego kroku liczy teraz loop()
     }
 }
 void ScrollWidget::setActive(bool act, bool clr) {

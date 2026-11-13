@@ -96,6 +96,7 @@ class Display {
     void    _updateBootSprite(int ssidIndex);
     void    _refreshThemeColors();
     void    _applyRssiMode();
+    void    _bufWarning();  // (MB) sygnalizator niskiego bufora audio
 };
 
 #else

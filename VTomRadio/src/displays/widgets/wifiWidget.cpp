@@ -179,6 +179,37 @@ void WifiWidget::_drawWifi() {
         const uint16_t col = (i < _strength) ? activeColor : inactive;
         _spr->fillRect(x, bottom - barH, barW, barH, col);
     }
+
+    // (MB) Sygnalizator niskiego bufora: biały kwadrat z czarnym "!", na środku wolnego miejsca
+    // między polem po lewej (_warnLeft) a pierwszym słupkiem.
+    if (_bufWarn) {
+        const int32_t size = maxH;
+        const int32_t top = bottom - size;
+        const int32_t freeL = (_warnLeft >= 0) ? (_warnLeft - (int32_t)_cfg.left) : 0;
+        int32_t sx = freeL + (x0 - freeL - size) / 2;
+        if (sx < 0) sx = 0;
+        if (sx + size > x0) sx = x0 - size;
+        _spr->fillRect(sx, top, size, size, TFT_WHITE);
+
+        const int32_t ew = max<int32_t>(2, size / 6);      // szerokość "!" (3 px przy 18)
+        const int32_t ex = sx + (size - ew) / 2;
+        const int32_t pad = size / 6;                      // margines góra/dół (3 px przy 18)
+        const int32_t dotTop = top + size - pad - ew;
+        _spr->fillRect(ex, top + pad, ew, dotTop - (ew - 1) - (top + pad), TFT_BLACK); // kreska
+        _spr->fillRect(ex, dotTop, ew, ew, TFT_BLACK);                           // kropka
+    }
+}
+
+void WifiWidget::setBufWarn(bool on) {
+    if (_bufWarn == on) return;
+    _bufWarn = on;
+    _dirty = true;
+    if (_active && !_locked) _draw();
+}
+
+void WifiWidget::setWarnLeft(int16_t screenX) {
+    _warnLeft = screenX;
+    _dirty = true;
 }
 
 // Oryginalne rysowanie łuków (nieużywane)

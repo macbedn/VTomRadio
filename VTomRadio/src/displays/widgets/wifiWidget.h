@@ -19,6 +19,8 @@ class WifiWidget : public Widget {
     void setStrength(int8_t s);
     void setRSSI(int32_t rssi);
     void invalidate();  // Force redraw when colors change
+    void setBufWarn(bool on);            // (MB) "!" w białym kwadracie przy niskim buforze audio
+    void setWarnLeft(int16_t screenX);   // (MB) lewa krawędź wolnego miejsca na "!" (współrzędna ekranu)
 
   protected:
     void _draw() override;
@@ -35,6 +37,8 @@ class WifiWidget : public Widget {
 
     int8_t _strength = 0;
     bool   _dirty = true;
+    bool    _bufWarn = false;
+    int16_t _warnLeft = -1;  // -1 = od lewej krawędzi widżetu
 
     void _init();
     void _ensureSprite();

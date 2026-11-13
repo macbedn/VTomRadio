@@ -236,6 +236,8 @@ void Display::_buildPager() {
 #    endif
 
     _chbox = new textBoxWidget(chBoxConf, 12, false, config.theme.ch, config.theme.ch_bg, config.theme.ch_border);
+    // (MB) "!" bufora na środku między polem numeru kanału a słupkami Wi-Fi
+    if (_wifiwidget) { _wifiwidget->setWarnLeft(chBoxConf.left + chBoxConf.width); }
     if (_chbox) { _footer->addWidget(_chbox); }
     if (_volwidget) { _footer->addWidget(_volwidget); }
     if (_ipbox) { _footer->addWidget(_ipbox); }
@@ -693,6 +695,7 @@ void Display::loop() {
                 case DSPRSSI:
                     _setRSSI(request.payload);
                     if (_heapbar && config.store.audioinfo) { _heapbar->setValue(player.isRunning() ? player.inBufferFilled() : 0); }
+                    _bufWarning();
                     break;
 
                 case PSTART: _layoutChange(true); break;
@@ -752,6 +755,33 @@ void Display::moveInputSelect(int delta) {
     inputSelectIndex = inputSelect_moveSelection(inputSelect_normalizeSelection(inputSelectIndex), delta);
     putRequest(DRAWINPUTSELECT, inputSelectIndex);
     timekeeper.waitAndReturnPlayer(config.store.stationsListReturnTime);
+}
+
+// (MB) "!" w białym kwadracie przy spadku bufora audio (jak w radiu SSD1305). Pojawia się poniżej
+// BUFWARN_ON %, znika powyżej BUFWARN_OFF %. Działa dopiero, gdy bufor po włączeniu stacji raz się
+// zapełnił, żeby nie migał przy każdej zmianie stacji.
+#    ifndef BUFWARN_ON
+#        define BUFWARN_ON 30
+#    endif
+#    ifndef BUFWARN_OFF
+#        define BUFWARN_OFF 60
+#    endif
+void Display::_bufWarning() {
+    if (!_wifiwidget) { return; }
+    static bool armed = false, shown = false;
+    if (!player.isRunning()) {
+        armed = shown = false;
+    } else {
+        const uint32_t full = psramInit() ? 300000 : 1600 * config.store.abuff;
+        const uint32_t pct = (uint64_t)player.inBufferFilled() * 100 / full;
+        if (pct > BUFWARN_OFF) {
+            armed = true;
+            shown = false;
+        } else if (armed && pct < BUFWARN_ON) {
+            shown = true;
+        }
+    }
+    _wifiwidget->setBufWarn(shown);
 }
 
 void Display::_setRSSI(int rssi) {

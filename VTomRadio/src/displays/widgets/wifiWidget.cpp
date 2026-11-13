@@ -141,9 +141,8 @@ void WifiWidget::_draw() {
 
     _spr->fillSprite(config.theme.wifi_bg);
 
-    if (!_drawImageForStrength()) {
-        _drawWifi();
-    }
+    // (MB) Ikona zawsze rysowana w kodzie jako słupki; pliki PNG nieużywane.
+    _drawWifi();
     _spr->pushSprite(_config.left, _config.top);
 
     _dirty = false;
@@ -157,7 +156,33 @@ void WifiWidget::_reset() {
     _dirty = true;
 }
 
+// (MB) 4 słupki o rosnącej wysokości: świecące białe, reszta w kolorze wifi_inactive.
 void WifiWidget::_drawWifi() {
+    const uint16_t activeColor = TFT_WHITE;
+    const uint16_t inactive = config.theme.wifi_inactive;
+
+    const int32_t h = _cfg.height;
+    const int32_t barCount = 4;
+    const int32_t barW = max<int32_t>(2, h / 5);
+    const int32_t gap = max<int32_t>(1, barW / 2);
+    const int32_t maxH = (h * 3) / 4;
+    const int32_t minH = max<int32_t>(2, maxH / 3);
+    const int32_t step = (maxH - minH) / (barCount - 1);
+
+    const int32_t totalW = barCount * barW + (barCount - 1) * gap;
+    const int32_t x0 = (_cfg.width - totalW) / 2;
+    const int32_t bottom = (h - maxH) / 2 + maxH; // pierwszy wiersz pod słupkami
+
+    for (int32_t i = 0; i < barCount; i++) {
+        const int32_t barH = (i == barCount - 1) ? maxH : minH + i * step;
+        const int32_t x = x0 + i * (barW + gap);
+        const uint16_t col = (i < _strength) ? activeColor : inactive;
+        _spr->fillRoundRect(x, bottom - barH, barW, barH, 1, col);
+    }
+}
+
+// Oryginalne rysowanie łuków (nieużywane)
+void WifiWidget::_drawWifiArcs() {
     uint16_t activeColor = _getActiveColor();
     uint16_t inactive = config.theme.wifi_inactive;
 

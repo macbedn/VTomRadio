@@ -45,6 +45,7 @@ class WifiWidget : public Widget {
     const char* _pathForLevel(int8_t level) const;
 
     void _drawWifi();
+    void _drawWifiArcs();
     void _fillArcThick(int32_t cx, int32_t cy, int32_t outerR, int32_t thickness, int32_t start, int32_t end, uint16_t color);
 
     uint16_t _getActiveColor() const;

@@ -164,7 +164,7 @@ void WifiWidget::_drawWifi() {
     const int32_t h = _cfg.height;
     const int32_t barCount = 4;
     const int32_t barW = max<int32_t>(3, (h * 7) / 25); // 7 px przy wysokości 25
-    const int32_t gap = max<int32_t>(2, (h * 3) / 25);  // 3 px przy wysokości 25
+    const int32_t gap = max<int32_t>(2, (h * 4) / 25);  // 4 px przy wysokości 25
     const int32_t maxH = (h * 3) / 4;
     const int32_t minH = max<int32_t>(2, maxH / 3);
     const int32_t step = (maxH - minH) / (barCount - 1);

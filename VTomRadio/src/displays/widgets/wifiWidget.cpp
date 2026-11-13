@@ -177,7 +177,7 @@ void WifiWidget::_drawWifi() {
         const int32_t barH = (i == barCount - 1) ? maxH : minH + i * step;
         const int32_t x = x0 + i * (barW + gap);
         const uint16_t col = (i < _strength) ? activeColor : inactive;
-        _spr->fillRoundRect(x, bottom - barH, barW, barH, 1, col);
+        _spr->fillRect(x, bottom - barH, barW, barH, col);
     }
 }
 

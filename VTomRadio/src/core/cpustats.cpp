@@ -10,6 +10,8 @@
 #    include <esp_heap_caps.h>
 #    include "player.h"
 
+extern bool g_bufWarnShown; // (MB) stan "!" z display.cpp
+
 namespace {
     constexpr int MAX_TASKS = 48;
     struct PrevEntry {
@@ -55,6 +57,7 @@ namespace {
     }
 
     void appendBuffer(String& out) {
+        out += g_bufWarnShown ? "\nWykrzyknik \"!\" na ekranie: SWIECI\n" : "\nWykrzyknik \"!\" na ekranie: nie\n";
         char     line[160];
         uint32_t size = player.getInBufferSize();
         if (size == 0) size = 1;

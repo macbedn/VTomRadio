@@ -722,30 +722,55 @@ void Display::moveInputSelect(int delta) {
     timekeeper.waitAndReturnPlayer(config.store.stationsListReturnTime);
 }
 
-// (MB) "!" w białym kwadracie przy spadku bufora audio (jak w radiu SSD1305). Pojawia się poniżej
-// BUFWARN_ON %, znika powyżej BUFWARN_OFF %. Działa dopiero, gdy bufor po włączeniu stacji raz się
-// zapełnił, żeby nie migał przy każdej zmianie stacji.
-#    ifndef BUFWARN_ON
-#        define BUFWARN_ON 30
+// (MB) "!" w białym kwadracie przy spadku bufora audio (jak w radiu SSD1305).
+// Progi liczone w SEKUNDACH dźwięku (z bitrate stacji), a nie w procentach bufora: ten sam rozmiar
+// bufora to 19 s dla stacji 64k, a tylko 1 s dla FLAC. Dolna granica w bajtach, bo dekoder MP3
+// milknie, gdy w buforze jest mniej niż ok. 18 KB.
+//   - "!" zapala się, gdy zostaje mniej niż BUFWARN_ON_MS dźwięku (albo mniej niż BUFWARN_MIN_BYTES),
+//   - gaśnie, gdy zapas wróci powyżej BUFWARN_OFF_MS (i powyżej 2 x BUFWARN_MIN_BYTES),
+//   - działa dopiero, gdy bufor po włączeniu stacji raz osiągnie poziom gaszenia (bez migania przy starcie),
+//   - stan kasuje się tylko przy zmianie stacji, nie przy ponownym łączeniu tej samej stacji.
+#    ifndef BUFWARN_ON_MS
+#        define BUFWARN_ON_MS 750
 #    endif
-#    ifndef BUFWARN_OFF
-#        define BUFWARN_OFF 60
+#    ifndef BUFWARN_OFF_MS
+#        define BUFWARN_OFF_MS 1500
 #    endif
+#    ifndef BUFWARN_MIN_BYTES
+#        define BUFWARN_MIN_BYTES 24000
+#    endif
+bool g_bufWarnShown = false; // (MB) stan "!" do podgladu na stronie /cpu
 void Display::_bufWarning() {
     if (!_wifiwidget) { return; }
-    static bool armed = false, shown = false;
-    if (!player.isRunning()) {
+    static bool     armed = false, shown = false;
+    static uint16_t station = 0;
+
+    if (config.lastStation() != station) { // inna stacja: zaczynamy od nowa
+        station = config.lastStation();
         armed = shown = false;
-    } else {
-        const uint32_t full = psramInit() ? 300000 : 1600 * config.store.abuff;
-        const uint32_t pct = (uint64_t)player.inBufferFilled() * 100 / full;
-        if (pct > BUFWARN_OFF) {
-            armed = true;
-            shown = false;
-        } else if (armed && pct < BUFWARN_ON) {
-            shown = true;
-        }
     }
+    if (!player.isRunning()) {
+        // zatrzymane albo ponowne łączenie: nic nie pokazujemy, ale pamiętamy "uzbrojenie" tej stacji
+        _wifiwidget->setBufWarn(false);
+        return;
+    }
+    const uint32_t kbps = config.station.bitrate;
+    if (kbps == 0) { // bitrate jeszcze nieznany: zostawiamy stan bez zmian
+        _wifiwidget->setBufWarn(shown);
+        return;
+    }
+    const uint32_t bytesPerSec = kbps * 1000 / 8;
+    const uint32_t filled = player.inBufferFilled();
+    const uint32_t onLevel = max<uint32_t>((uint64_t)bytesPerSec * BUFWARN_ON_MS / 1000, BUFWARN_MIN_BYTES);
+    const uint32_t offLevel = max<uint32_t>((uint64_t)bytesPerSec * BUFWARN_OFF_MS / 1000, 2 * BUFWARN_MIN_BYTES);
+
+    if (filled > offLevel) {
+        armed = true;
+        shown = false;
+    } else if (armed && filled < onLevel) {
+        shown = true;
+    }
+    g_bufWarnShown = shown;
     _wifiwidget->setBufWarn(shown);
 }
 

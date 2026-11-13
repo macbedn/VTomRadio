@@ -2,7 +2,7 @@
 #    define options_h
 #    pragma once
 
-#    define FW_VERSION "0.2.4_MB"
+#    define FW_VERSION "0.2.7_MB"
 
 #    ifndef THEME_CSV_VERSION
 #        define THEME_CSV_VERSION "0.0.3"
@@ -102,16 +102,6 @@ STORE YOUR SETTINGS IN THE *** myoptions.h *** FILE.
   #define TFT_RST       -1   // Or set to -1 and connect to Esp EN pin
 #endif
 
-/*        NEXTION                 */
-#ifndef NEXTION_RX
-  #define NEXTION_RX    255
-#endif
-#ifndef NEXTION_TX
-  #define NEXTION_TX    255
-#endif
-#if NEXTION_RX!=255 && NEXTION_TX!=255
-  #define USE_NEXTION
-#endif
 /*        OLED I2C DISPLAY        */
 #ifndef I2C_SDA
   #define I2C_SDA 21

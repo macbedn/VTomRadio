@@ -130,6 +130,13 @@ Itt olvashatsz róla bővebben: [PCB_2026_06_21](PCB/PCB_2026_06_21/readme.md)
     <img src="images/buymeacoffee.png" width="200">
 </a> 
 
+## v0.2.7
+- NEXTION kijelző támogatás megszűntetve.
+## v0.2.6
+- DLNA hibajavítás a fájllista összeállításnál.
+## v0.2.5
+- Playlist a böngésző gyorsítótárából olvasta az exportálandó adatokat és nem a fizikai fájlt exportálta, hiba javítása.   
+
 ## v0.2.4   
 - DLNA: mostantól a lejátszási lista összeállításánál a zenefájlokat a fájlok előtt megjelenő jelölőnégyzettel lehet kiválasztani.  
 - A kijelölt számokból új lista építése vagy meglévőhöz fűzése lehetséges.  

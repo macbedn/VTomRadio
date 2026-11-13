@@ -20,10 +20,6 @@
 // #define LGFX_USE_PNG
 
 Display display;
-#ifdef USE_NEXTION
-#    include "../displays/nextion.h"
-Nextion nextion;
-#endif
 
 #ifndef CORE_STACK_SIZE
 #    define CORE_STACK_SIZE 1024 * 8 // 4
@@ -126,9 +122,6 @@ Display::~Display() {
 
 void Display::init() {
     Serial.print("##[BOOT]#\tdisplay.init\t\n");
-#    ifdef USE_NEXTION
-    nextion.begin();
-#    endif
 #    if LIGHT_SENSOR != 255
     analogSetAttenuation(ADC_0db);
 #    endif
@@ -300,20 +293,11 @@ void Display::_apScreen() {
 
 void Display::_start() {
     if (_boot) { _pager->removePage(_boot); }
-#    ifdef USE_NEXTION
-    nextion.wake();
-#    endif
     if (network.status != CONNECTED && network.status != SDREADY) {
         _apScreen();
-#    ifdef USE_NEXTION
-        nextion.apScreen();
-#    endif
         _bootStep = 2;
         return;
     }
-#    ifdef USE_NEXTION
-    nextion.start();
-#    endif
     _buildPager();
     _mode = PLAYER;
     config.setTitle(LANG::const_PlReady);
@@ -395,9 +379,6 @@ void Display::_applyRssiMode() {
 }
 
 void Display::_swichMode(displayMode_e newmode) {
-#    ifdef USE_NEXTION
-    nextion.putRequest({NEWMODE, newmode});
-#    endif
     if (newmode == _mode || (network.status != CONNECTED && network.status != SDREADY)) { return; }
     const displayMode_e prevMode = _mode;
     _mode = newmode;
@@ -453,7 +434,6 @@ void Display::_swichMode(displayMode_e newmode) {
         config.doSleepW();
     }
     if (newmode == SDCHANGE) { _showDialog(LANG::const_waitForSD); }
-    if (newmode == INFO || newmode == SETTINGS || newmode == TIMEZONE || newmode == WIFI) { _showDialog(LANG::const_DlgNextion); }
     if (newmode == NUMBERS) { _showDialog(""); }
 #    if (DSP_MODEL == DSP_ILI9488) || (DSP_MODEL == DSP_ST7796)
     if (newmode == PRESETS) {
@@ -525,9 +505,6 @@ void Display::putRequest(displayRequestType_e type, int payload) {
     request.type = type;
     request.payload = payload;
     xQueueSend(displayQueue, &request, DSQ_SEND_DELAY);
-#    ifdef USE_NEXTION
-    nextion.putRequest(request);
-#    endif
 }
 
 void Display::_layoutChange(bool played) { // Player START vagy STOP után hívódik meg, hogy a VU meter helyét és láthatóságát a config alapján beállítsa.
@@ -571,9 +548,6 @@ void Display::loop() {
     }
     if (displayQueue == NULL || _locked) { return; }
     _pager->loop();
-#    ifdef USE_NEXTION
-    nextion.loop();
-#    endif
     requestParams_t request;
     if (xQueueReceive(displayQueue, &request, DSP_QUEUE_TICKS)) {
         bool pm_result = true;
@@ -588,10 +562,6 @@ void Display::loop() {
 
                 case CLOCK:
                     if (_mode == PLAYER || _mode == SCREENSAVER || _mode == LOST) { _time(request.payload == 1); }
-                    /*#ifdef USE_NEXTION
-  if(_mode==TIMEZONE) nextion.localTime(network.timeinfo);
-  if(_mode==INFO)     nextion.rssi();
-#endif*/
                     break;
 
                 case NEWTITLE: _title(); break;
@@ -669,11 +639,6 @@ void Display::loop() {
 
                 case BOOTSTRING:
                     if (_bootstring) { _bootstring->setText(config.ssids[request.payload].ssid, LANG::bootstrFmt); }
-                    /*#ifdef USE_NEXTION
- char buf[50];
- snprintf(buf, 50, bootstrFmt, config.ssids[request.payload].ssid);
- nextion.bootString(buf);
-#endif*/
                     break;
 
                 case BOOTWIFISWITCH:
@@ -816,11 +781,6 @@ void Display::_station() {
         _meta->setText(config.station.name);
     }
 
-    /*#ifdef USE_NEXTION
-    nextion.newNameset(config.station.name);
-    nextion.bitrate(config.station.bitrate);
-    nextion.bitratePic(ICON_NA);
-  #endif*/
 }
 
 char* split(char* str, const char* delim) {
@@ -877,9 +837,6 @@ void Display::_time(bool redraw) {
         _clock->moveTo({lt, ft, 0}); // Az óra új helyre mozgatása beégés megelőzéshez, képernyőn belül tartva.
     }
     _clock->draw(redraw);
-    /*#ifdef USE_NEXTION
-      nextion.printClock(network.timeinfo);
-    #endif*/
 }
 
 void Display::_volume() {
@@ -890,9 +847,6 @@ void Display::_volume() {
         timekeeper.waitAndReturnPlayer(2);
         _nums->setText(config.store.volume, numtxtFmt);
     }
-    /*#ifdef USE_NEXTION
-      nextion.setVol(config.store.volume, _mode == VOL);
-    #endif*/
 }
 
 void Display::flip() {
@@ -947,27 +901,14 @@ void Display::loopNameday(bool force) {
 //============================================================================================================================
 void Display::init() {
     _createDspTask();
-#    ifdef USE_NEXTION
-    nextion.begin(true);
-#    endif
 }
 void Display::_start() {
-#    ifdef USE_NEXTION
-    nextion.start();
-#    endif
     config.setTitle(LANG::const_PlReady);
 }
 
 void Display::putRequest(displayRequestType_e type, int payload) {
     if (type == DSP_START) { _start(); }
-#    ifdef USE_NEXTION
-    requestParams_t request;
-    request.type = type;
-    request.payload = payload;
-    nextion.putRequest(request);
-#    else
     if (type == NEWMODE) { mode((displayMode_e)payload); }
-#    endif
 }
 //============================================================================================================================
 #endif // DUMMYDISPLAY

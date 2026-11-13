@@ -12,6 +12,7 @@ ScrollWidget::~ScrollWidget() {
         _spr->deleteSprite();
         delete _spr;
     }
+    _freeStrip();
     if (_sep) free(_sep);
 }
 
@@ -50,6 +51,11 @@ void ScrollWidget::init(const char* separator, ScrollConfig conf, uint16_t fgcol
 
 void ScrollWidget::_setTextParams() {
     if (!_spr || _config.textsize == 0) return;
+    _applyFont(_spr);
+}
+
+// (MB) Ta sama czcionka i kolory dla dowolnego sprite'a (ekranowego albo długiego paska)
+void ScrollWidget::_applyFont(LGFX_Sprite* _spr) {
     _spr->setTextColor(_fgcolor, _bgcolor);
     _spr->setTextWrap(false);
     _spr->unloadFont();
@@ -102,6 +108,7 @@ void ScrollWidget::setFontBySize(uint8_t size) {
     int sepW = _spr->textWidth(_sep);
     _fullWidth = _textwidth + sepW;
     _doscroll = (_textwidth > _width);
+    _freeStrip(); // (MB) nowa czcionka = pasek do narysowania od nowa
     _scrollOffset = 0;
     _scrollState = SCROLL_WAIT_START;
     _scrolldelay = millis();
@@ -117,6 +124,9 @@ void ScrollWidget::setText(const char* txt) {
     int sepW = _spr->textWidth(_sep);
     _fullWidth = _textwidth + sepW;
     _doscroll = (_textwidth > _width);
+    // (MB) nowy tekst: pasek narysuje się przy pierwszym kroku przewijania; krótki tekst nie potrzebuje paska
+    if (_doscroll) _stripDirty = true;
+    else _freeStrip();
     _scrollOffset = 0;
     _scrollState = SCROLL_WAIT_START;
     _scrolldelay = millis();
@@ -149,6 +159,13 @@ void ScrollWidget::loop() {
 
     // (MB) Przesuwanie liczone z upływu czasu: równa prędkość nawet przy spóźnionej klatce
     uint32_t elapsed = now - _scrolldelay;
+    if (_scrolltime == 0) {
+        // (MB) zabezpieczenie: czas 0 ms = jeden krok w każdej klatce (jak w starym kodzie), bez dzielenia przez zero
+        _scrolldelay = now;
+        _stepsDue = 1;
+        _draw();
+        return;
+    }
     if (elapsed < _scrolltime) return;
     uint32_t steps = elapsed / _scrolltime;
     if (steps > 4) {
@@ -166,6 +183,7 @@ void ScrollWidget::setColors(uint16_t fg, uint16_t bg) {
     _fgcolor = fg;
     _bgcolor = bg;
     _setTextParams();
+    _stripDirty = true; // (MB) nowe kolory = pasek do narysowania od nowa
     _draw();
 }
 
@@ -237,7 +255,25 @@ void ScrollWidget::_draw() {
             return;
         }
 
-        // Rajzolás folyamata
+        // (MB) Wariant B: kopiujemy okienko z gotowego paska zamiast rysować litery od nowa
+        if (_prepareStrip()) {
+            const int       h = _spr->height();
+            const uint32_t  dstStride = _spr->bufferLength() / h;     // bajty na wiersz
+            const uint32_t  srcStride = _strip->bufferLength() / h;
+            const int       first = min(_width, (uint16_t)(_fullWidth - _scrollOffset)); // piksele do końca paska
+            uint8_t*        dst = (uint8_t*)_spr->getBuffer();
+            const uint8_t*  src = (const uint8_t*)_strip->getBuffer();
+            for (int y = 0; y < h; y++) {
+                uint8_t*       d = dst + y * dstStride;
+                const uint8_t* srow = src + y * srcStride;
+                memcpy(d, srow + _scrollOffset * 2, first * 2);
+                if (first < _width) memcpy(d + first * 2, srow, (_width - first) * 2); // początek napisu wjeżdża z prawej
+            }
+            _spr->pushSprite(_config.left, _config.top);
+            return;
+        }
+
+        // Rajzolás folyamata (zapas: gdy pasek się nie zmieścił w pamięci, rysujemy jak dawniej)
         _spr->fillSprite(_bgcolor);
 
         // Első példány kirajzolása (balra csúszik ki)
@@ -277,4 +313,41 @@ void ScrollWidget::_reset() {
     _scrollOffset = 0;
     _scrollState = SCROLL_WAIT_START;
     if (_spr && _spr->width() > 0) _spr->fillSprite(_bgcolor);
+}
+
+// (MB) Wariant B: przygotuj długi pasek z całym napisem i separatorem (rysowany raz na zmianę tekstu)
+bool ScrollWidget::_prepareStrip() {
+    if (!_spr || _fullWidth <= _width || _textheight == 0) return false;
+    if (_spr->getColorDepth() != 16) return false;
+    if (_strip && !_stripDirty && _strip->width() == _fullWidth && _strip->height() == _spr->height()) return true;
+
+    if (!_strip) {
+        _strip = new LGFX_Sprite(&dsp);
+        _strip->setColorDepth(16);
+        _strip->setPsram(true); // tylko PSRAM: małej RAM nie ruszamy
+    }
+    if (_strip->width() != _fullWidth || _strip->height() != _spr->height()) {
+        _strip->deleteSprite();
+        if (!_strip->createSprite(_fullWidth, _spr->height())) {
+            _freeStrip();
+            return false;
+        }
+    }
+    _applyFont(_strip);
+    _strip->fillSprite(_bgcolor);
+    _strip->setCursor(0, 0);
+    _strip->print(_text);
+    _strip->print(_sep);
+    _strip->unloadFont(); // czcionka zajmuje małą RAM, pasek już jej nie potrzebuje
+    _stripDirty = false;
+    return true;
+}
+
+void ScrollWidget::_freeStrip() {
+    if (_strip) {
+        _strip->deleteSprite();
+        delete _strip;
+        _strip = nullptr;
+    }
+    _stripDirty = true;
 }

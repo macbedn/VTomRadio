@@ -37,8 +37,14 @@ class ScrollWidget : public TextWidget {
     uint8_t      _stepsDue = 0; // (MB) ile kroków przesunięcia należy się od ostatniej klatki
     int          _fullWidth = 0;
     ScrollState  _scrollState = SCROLL_WAIT_START;
+    // (MB) wariant B: cały napis narysowany raz na długim pasku (PSRAM), w klatce kopiujemy tylko okienko
+    LGFX_Sprite* _strip = nullptr;
+    bool         _stripDirty = true;
 
     void _setTextParams();
+    void _applyFont(LGFX_Sprite* s);
+    bool _prepareStrip();
+    void _freeStrip();
     void _draw();
     void _clear();
     void _reset();

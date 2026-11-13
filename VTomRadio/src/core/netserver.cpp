@@ -779,6 +779,14 @@ bool NetServer::begin(bool quiet) {
   webserver.on("/theme.css", HTTP_GET, [sendWebFile](AsyncWebServerRequest *request) {
     sendWebFile(request, "/www/theme.css", "/www/theme.css.gz", "text/css");
   });
+  // (MB) Moje logo: gdy w /www jest logo_mb.svg(.gz), panel dostaje je zamiast logo autora (logo.svg zostaje bez zmian).
+  webserver.on("/logo.svg", HTTP_GET, [sendWebFile](AsyncWebServerRequest *request) {
+    if (LittleFS.exists("/www/logo_mb.svg") || LittleFS.exists("/www/logo_mb.svg.gz")) {
+      sendWebFile(request, "/www/logo_mb.svg", "/www/logo_mb.svg.gz", "image/svg+xml");
+    } else {
+      sendWebFile(request, "/www/logo.svg", "/www/logo.svg.gz", "image/svg+xml");
+    }
+  });
   webserver.on("/dragpl.js", HTTP_GET, [sendWebFile](AsyncWebServerRequest *request) {
     sendWebFile(request, "/www/dragpl.js", "/www/dragpl.js.gz", "application/javascript");
   });

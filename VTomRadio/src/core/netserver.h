@@ -6,22 +6,31 @@ enum requestType_e : uint8_t  { PLAYLIST=1, STATION=2, STATIONNAME=3, ITEM=4, TI
 enum import_e      : uint8_t  { IMDONE=0, IMPL=1, IMWIFI=2 };
 const char emptyfs_html[] PROGMEM = R"(
 <!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=0.25"><meta charset="UTF-8">
-<title>VTom Radio - WEB Board Uploader</title><style>html, body { margin: 0; padding: 0; height: 100%; } body{background-color: #000;color: #4b95d6;font-size:20px;display:flex;flex-direction:column;font-family:"Roboto","Helvetica Neue",Arial,sans-serif;font-weight:400;}
-hr{margin:20px 0;border:0; border-top: #555 1px solid;} p{text-align:center;margin-bottom:10px;} section{max-width:500px; text-align:center;margin:0 auto 30px auto;padding:20px;flex:1;}
-.hidden{display:none;}a { color: var(--accent-color); text-decoration: none; font-weight: bold } a:hover { text-decoration: underline }
+<title>VTom Radio - WEB Board Uploader</title><link rel="stylesheet" href="/theme.css" type="text/css" />
+<style>
+/* (MB) kolory z motywu panelu (theme.css); gdy motywu brak (pusty system plikow) - kolory autora */
+html, body { margin: 0; padding: 0; height: 100%; }
+body{background:var(--main-bg-color,#000);color:var(--main-text-color,#ccc);font-size:20px;display:flex;flex-direction:column;font-family:"Roboto","Helvetica Neue",Arial,sans-serif;font-weight:400;}
+h2{text-transform:uppercase;font-weight:bold;font-size:26px;color:var(--accent-color,#4b95d6);margin:10px 0 0 0;}
+hr{margin:20px 0;border:0; border-top: var(--section-border,#555) 1px solid;} p{text-align:center;margin-bottom:10px;} section{max-width:500px; text-align:center;margin:0 auto 30px auto;padding:20px;flex:1;}
+.hidden{display:none;}a { color: var(--accent-color,#4b95d6); text-decoration: none; font-weight: bold } a:hover { text-decoration: underline }
+label{color:var(--accent-color,#4b95d6);}
 #copy { text-align: center; padding: 14px; font-size: 14px; }
 #uploadwrap.hidden,#wupload.hidden,#apintro.hidden{display:none;}
 #wifi_scan_wrap{margin:25px 0;text-align:center;}
-#scan_wifi_btn{border:2px solid #4b95d6;color:#000;background-color:#4b95d6;border-radius:25px;font-size:20px;padding:0 24px;height:46px;box-sizing:border-box;cursor:pointer;font-family:"Roboto","Helvetica Neue",Arial,sans-serif;font-weight:400;}
+#scan_wifi_btn,input[type=submit]{border:var(--accent-color,#4b95d6) 2px solid;color:var(--accent-color,#4b95d6);background:var(--odd-bg-color,#272727);border-radius:10px;font-size:18px;text-transform:uppercase;padding:0 22px;height:46px;box-sizing:border-box;cursor:pointer;font-family:"Roboto","Helvetica Neue",Arial,sans-serif;font-weight:400;min-width:120px;}
+#scan_wifi_btn:hover,input[type=submit]:hover{background:var(--accent-dark,#3e7fba);color:var(--accent-text-color,#fff);}
 #scan_wifi_btn:disabled{opacity:.7;cursor:wait;}
-#wifi_scan_list{margin-top:8px;max-height:180px;overflow:auto;border:1px solid #555;border-radius:8px;padding:6px;display:none;text-align:left;}
+#wifi_scan_list{margin-top:8px;max-height:180px;overflow:auto;border:1px solid var(--section-border,#555);border-radius:8px;padding:6px;display:none;text-align:left;}
 .wifi-item{display:flex;justify-content:space-between;gap:10px;padding:6px 8px;border-radius:6px;cursor:pointer;}
-.wifi-item:hover{background: #272727;}
-.wifi-rssi{color: #999;font-size:14px;}
-input[type=file]{color: #ccc;} input[type=file]::file-selector-button, input[type=submit]{border:2px solid #4b95d6;color: #000;padding:6px 16px;border-radius:25px;background-color: #4b95d6;margin:0 6px;cursor:pointer;}
-input[type=submit]{font-size:18px;text-transform:uppercase;padding:8px 26px;margin-top:10px;font-family:"Roboto","Helvetica Neue",Arial,sans-serif;font-weight:400;} span{color: #ccc} .flex{display:flex;justify-content: space-around;margin-top:10px;}
-#wupload p{margin:0;} #wupload input[type=submit]{margin-top:0;height:46px;box-sizing:border-box;padding:0 26px;}
-input[type=text],input[type=password]{width:170px;background: #272727;color: #4b95d6;padding:6px 12px;font-size:20px;border: #2d2d2d 1px solid;margin:4px 0 0 4px;border-radius:4px;outline:none;}
+.wifi-item:hover{background: var(--playlist-hover,#272727);}
+.wifi-rssi{color: var(--accent-dark,#999);font-size:14px;}
+input[type=file]{color: var(--main-hl-color,#ccc);font-family:"Roboto","Helvetica Neue",Arial,sans-serif;}
+input[type=file]::file-selector-button{border:var(--accent-color,#4b95d6) 2px solid;color:var(--accent-color,#4b95d6);background:var(--odd-bg-color,#272727);padding:6px 16px;border-radius:20px;margin:0 6px;cursor:pointer;text-transform:uppercase;font-family:"Roboto","Helvetica Neue",Arial,sans-serif;}
+input[type=file]::file-selector-button:hover{background:var(--accent-color,#4b95d6);color:var(--odd-bg-color,#000);}
+input[type=submit]{margin-top:10px;} span{color: var(--main-text-color,#ccc)} .flex{display:flex;justify-content: space-around;margin-top:10px;}
+#wupload p{margin:0;} #wupload input[type=submit]{margin-top:0;}
+input[type=text],input[type=password]{width:170px;background: var(--odd-bg-color,#272727);color: var(--accent-color,#4b95d6);padding:6px 12px;font-size:20px;border: var(--input-border,#2d2d2d) 1px solid;margin:4px 0 0 4px;border-radius:4px;outline:none;}
 @media screen and (max-width:480px) {section{zoom:0.7;-moz-transform:scale(0.7);}#scan_wifi_btn{font-size:22px;padding:0 26px;height:50px;}}
 </style>
 <script type="text/javascript" src="/variables.js"></script>

@@ -14,6 +14,7 @@
 > **Czym się różni od oryginału:**
 >
 > **2026-11-14**
+> - animacja przy wyłączaniu (CRT Screen-Off Animation): obraz gaśnie jak w starym telewizorze kineskopowym, napis „WYŁĄCZANIE”
 > - ekran aktualizacji z paskiem postępu
 >
 > **2026-11-13**
